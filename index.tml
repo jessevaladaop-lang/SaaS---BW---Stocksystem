@@ -1,0 +1,3522 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>STOCK SYSTEM - Logística Operacional</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* === VARIÁVEIS CSS (TEMA & CORES) === */
+        :root {
+            /* Cores Dinâmicas (Accent) */
+            --accent: #2F81F7;
+            --accent-hover: #1e6bd6;
+            
+            /* Status Colors */
+            --success: #3FB950;
+            --success-bg: rgba(63, 185, 80, 0.15);
+            --warning: #D29922;
+            --warning-bg: rgba(210, 153, 34, 0.15);
+            --danger: #F85149;
+            --danger-bg: rgba(248, 81, 73, 0.15);
+            --info: #8957E5;
+            --info-bg: rgba(137, 87, 229, 0.15);
+            --orange: #F0883E;
+            --orange-bg: rgba(240, 136, 62, 0.15);
+
+            /* Tipografia */
+            --font-main: 'Inter', sans-serif;
+            --text-base: 14px;
+            --text-title: 20px;
+            --text-label: 12px;
+            
+            /* Estrutura */
+            --sidebar-width: 220px;
+            --radius-card: 8px;
+            --radius-btn: 6px;
+            --transition: all 0.2s ease;
+        }
+
+        /* Tema Escuro (Padrão) */
+        [data-theme="dark"] {
+            --bg-main: #0D1117;
+            --bg-panel: #161B22;
+            --border: #30363D;
+            --text-main: #E6EDF3;
+            --text-sec: #8B949E;
+            --shadow: none;
+            --border-style: 1px solid var(--border);
+            --input-bg: #010409;
+            --hover-bg: #21262d;
+        }
+
+        /* Tema Claro */
+        [data-theme="light"] {
+            --bg-main: #F0F2F5;
+            --bg-panel: #FFFFFF;
+            --border: #D1D5DB;
+            --text-main: #111827;
+            --text-sec: #6B7280;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --border-style: 1px solid var(--border);
+            --input-bg: #FFFFFF;
+            --hover-bg: #F3F4F6;
+        }
+
+        /* === RESET & BASE === */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font-main);
+            font-size: var(--text-base);
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+            overflow-x: hidden;
+        }
+        a { text-decoration: none; color: inherit; }
+        ul { list-style: none; }
+        button { cursor: pointer; font-family: inherit; border: none; outline: none; }
+        input, select, textarea { font-family: inherit; font-size: 16px; /* Evita zoom em celulares */ }
+
+        /* === TIPOGRAFIA E UTILITÁRIOS === */
+        h1, h2, h3 { font-weight: 700; }
+        h1 { font-size: var(--text-title); margin-bottom: 1rem; }
+        .label { 
+            font-size: var(--text-label); 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            letter-spacing: 0.08em; 
+            color: var(--text-sec);
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .flex { display: flex; }
+        .flex-col { display: flex; flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-1 { gap: 0.5rem; }
+        .gap-2 { gap: 1rem; }
+        .gap-3 { gap: 1.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .hidden { display: none !important; }
+
+        /* === CONTROLE VISUAL DE PERMISSÕES === */
+        body[data-perm-pedidos-ver="false"] #nav-pedidos { display: none !important; }
+        body[data-perm-pedidos-edit="false"] .req-pedidos-edit { display: none !important; pointer-events: none; }
+        
+        body[data-perm-atend-ver="false"] #nav-atendimento { display: none !important; }
+        body[data-perm-atend-edit="false"] .req-atend-edit { display: none !important; pointer-events: none; }
+        
+        body[data-perm-repo-ver="false"] #nav-reposicao { display: none !important; }
+        body[data-perm-repo-edit="false"] .req-repo-edit { display: none !important; pointer-events: none; }
+        
+        body[data-perm-config-ver="false"] #nav-config { display: none !important; }
+        body[data-perm-config-edit="false"] .req-config-edit { display: none !important; pointer-events: none; }
+
+        /* === COMPONENTES === */
+        /* Componente Details (Sanfona dos Motoristas) */
+        details > summary { list-style: none; user-select: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] > summary { border-bottom: 1px dashed var(--border); padding-bottom: 0.8rem; margin-bottom: 0.5rem; }
+
+        /* Botões */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-btn);
+            font-weight: 600;
+            font-size: 13px;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid transparent;
+        }
+        .btn-primary { background-color: var(--accent); color: #fff; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-secondary { background-color: var(--bg-panel); color: var(--text-main); border: var(--border-style); }
+        .btn-secondary:hover { background-color: var(--hover-bg); }
+        .btn-success { background-color: var(--success); color: #fff; }
+        .btn-warning { background-color: var(--warning); color: #fff; }
+        .btn-danger { background-color: transparent; color: var(--danger); border: 1px solid var(--danger); }
+        .btn-danger:hover { background-color: var(--danger-bg); }
+        .btn-icon { padding: 0.4rem; background: transparent; color: var(--text-sec); border-radius: 4px; }
+        .btn-icon:hover { color: var(--text-main); background: var(--hover-bg); }
+
+        /* Inputs & Forms */
+        .input-group { margin-bottom: 1rem; width: 100%; }
+        .form-control {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border-radius: var(--radius-btn);
+            background-color: var(--input-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            transition: var(--transition);
+        }
+        .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(47, 129, 247, 0.2); }
+        textarea.form-control { resize: vertical; min-height: 100px; }
+        
+        /* Cards & Panels */
+        .card {
+            background-color: var(--bg-panel);
+            border-radius: var(--radius-card);
+            border: var(--border-style);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+        }
+
+        /* Badges */
+        .badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+            text-transform: uppercase;
+        }
+
+        /* Tabelas */
+        .table-container { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { 
+            padding: 0.8rem 1rem; 
+            border-bottom: var(--border-style); 
+            color: var(--text-sec); 
+            font-size: 12px; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            white-space: nowrap;
+        }
+        td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); font-size: 13px; white-space: nowrap; }
+        tr:hover td { background-color: var(--hover-bg); }
+        tr:last-child td { border-bottom: none; }
+
+        /* Modal / Drawer */
+        .overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: var(--transition);
+        }
+        .overlay.active { opacity: 1; pointer-events: auto; }
+        
+        .drawer {
+            position: fixed; top: 0; right: -400px; width: 100%; max-width: 400px; height: 100vh;
+            background: var(--bg-main); z-index: 101;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+            transition: right 0.3s ease; display: flex; flex-direction: column;
+            border-left: var(--border-style);
+        }
+        .drawer.active { right: 0; }
+        .drawer-header { padding: 1.5rem; border-bottom: var(--border-style); display: flex; justify-content: space-between; align-items: center;}
+        .drawer-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+        .drawer-footer { padding: 1.5rem; border-top: var(--border-style); display: flex; justify-content: flex-end; gap: 1rem;}
+
+        /* === ESTRUTURA DO LAYOUT === */
+        #login-screen {
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            background-color: var(--bg-main); padding: 1rem;
+        }
+        .login-box { width: 100%; max-width: 380px; text-align: center; }
+        .login-logo { margin-bottom: 2rem; color: var(--accent); }
+        .login-error { color: var(--danger); font-size: 12px; margin-bottom: 1rem; display: none; }
+
+        #main-screen { display: flex; height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width); background-color: var(--bg-panel);
+            border-right: var(--border-style); display: flex; flex-direction: column;
+            flex-shrink: 0; transition: var(--transition);
+        }
+        .sidebar-header { padding: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 18px; color: var(--accent); border-bottom: var(--border-style); }
+        .sidebar-nav { flex: 1; padding: 1rem 0; overflow-y: auto; }
+        .nav-item {
+            padding: 0.8rem 1.5rem; display: flex; align-items: center; gap: 0.8rem;
+            color: var(--text-sec); cursor: pointer; transition: var(--transition);
+            border-left: 3px solid transparent; font-weight: 600;
+        }
+        .nav-item:hover { color: var(--text-main); background-color: var(--hover-bg); }
+        .nav-item.active { color: #fff; background-color: var(--accent); border-left-color: #fff; }
+        .nav-item.active svg { stroke: #fff; fill: none; }
+        
+        .sidebar-footer { padding: 1.5rem; border-top: var(--border-style); }
+        .user-info { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 12px; overflow: hidden; object-fit: cover; flex-shrink: 0; }
+        
+        /* Conteúdo Principal */
+        .content-area { flex: 1; overflow-y: auto; background-color: var(--bg-main); padding-bottom: 2rem; }
+        .module { padding: 2rem; display: none; animation: fadeIn 0.3s; max-width: 1200px; margin: 0 auto; }
+        .module.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Barra Superior dos Módulos */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+        .search-box { position: relative; width: 100%; max-width: 300px; }
+        .search-box input { padding-left: 2.5rem; }
+        .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-sec); }
+
+        /* Tabs (Atendimento & Filtros) */
+        .tabs { display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: var(--border-style); overflow-x: auto; padding-bottom: 0.5rem; -webkit-overflow-scrolling: touch; }
+        .tab { padding: 0.5rem 1rem; cursor: pointer; color: var(--text-sec); font-weight: 600; border-bottom: 2px solid transparent; transition: var(--transition); white-space: nowrap; }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Queue Cards */
+        .queue-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+        .queue-card { border-left: 4px solid var(--accent); animation: fadeIn 0.3s; transition: all 0.3s; }
+        .queue-card.removing { opacity: 0; transform: scale(0.9); }
+
+        /* Reposição */
+        .repo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+        .destino-block { position: relative; animation: fadeIn 0.2s ease; border: 1px dashed var(--accent); background: rgba(47, 129, 247, 0.02); }
+        .critical-row td { color: var(--danger); font-weight: 600; }
+        .warning-row td { color: var(--warning); }
+
+        /* Configurações */
+        .color-picker { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .color-circle { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s; flex-shrink: 0; }
+        .color-circle:hover { transform: scale(1.1); }
+        .color-circle.active { border-color: var(--text-main); }
+
+        /* === MODO MONITOR (TV) === */
+        .tv-header { display: none; text-align: center; font-size: 2.5rem; color: var(--accent); margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+        .btn-exit-tv { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: none; font-size: 16px; padding: 1rem 2rem; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        
+        body.monitor-mode #sidebar, 
+        body.monitor-mode .header-mobile,
+        body.monitor-mode .top-bar,
+        body.monitor-mode .tabs { display: none !important; }
+        
+        body.monitor-mode .content-area { padding: 2rem; max-width: 100%; }
+        body.monitor-mode .tv-header { display: block; }
+        body.monitor-mode .btn-exit-tv { display: inline-flex; }
+        body.monitor-mode .queue-grid { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 1.5rem; }
+        body.monitor-mode .queue-card { font-size: 1.2rem; border-width: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        body.monitor-mode .queue-card h3 { font-size: 26px; }
+        body.monitor-mode .queue-card .badge { font-size: 16px; padding: 0.4rem 1rem; border-radius: 20px; }
+        body.monitor-mode .queue-card button { display: none !important; } /* Esconde botões de ação na TV */
+
+        /* Mobile */
+        .menu-toggle { display: none; background: transparent; color: var(--text-main); border: none; font-size: 24px; cursor: pointer; }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; left: -220px; height: 100vh; z-index: 50; }
+            .sidebar.mobile-open { left: 0; }
+            .menu-toggle { display: block; margin-right: 1rem; }
+            .top-bar { flex-direction: column; align-items: flex-start; }
+            .search-box { width: 100%; max-width: 100%; }
+            .repo-grid { grid-template-columns: 1fr; }
+            .content-area { padding-top: 1rem; padding-left: 1rem; padding-right: 1rem; }
+            .module { padding: 1rem 0; }
+            .header-mobile { display: flex; align-items: center; padding: 0 0 1rem 0; border-bottom: var(--border-style); margin-bottom: 1rem; }
+        }
+        @media (min-width: 769px) { .header-mobile { display: none; } }
+
+    </style>
+</head>
+<body data-theme="dark" data-perm-pedidos-ver="true" data-perm-pedidos-edit="true" data-perm-atend-ver="true" data-perm-atend-edit="true" data-perm-repo-ver="true" data-perm-repo-edit="true" data-perm-config-ver="true" data-perm-config-edit="true">
+
+    <!-- === TELA DE LOGIN === -->
+    <div id="login-screen">
+        <div class="card login-box">
+            <div class="login-logo flex-col items-center">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                <h2>STOCK SYSTEM</h2>
+            </div>
+            <div id="login-error" class="login-error">Credenciais inválidas.</div>
+            <form id="form-login">
+                <div class="input-group text-left">
+                    <label class="label">Usuário</label>
+                    <input type="text" id="login-user" class="form-control" required placeholder="admin ou operador">
+                </div>
+                <div class="input-group text-left">
+                    <label class="label">Senha</label>
+                    <input type="password" id="login-pass" class="form-control" required placeholder="admin123 ou op123">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">Entrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Botão Fixo do Modo Monitor -->
+    <button class="btn btn-danger btn-exit-tv" onclick="app.toggleMonitorMode()">Sair do Modo TV (Esc)</button>
+
+    <!-- === TELA PRINCIPAL === -->
+    <div id="main-screen" class="hidden">
+        
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                STOCK
+            </div>
+            <ul class="sidebar-nav">
+                <li class="nav-item active" id="nav-pedidos" data-target="pedidos-module">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                    Pedidos
+                </li>
+                <li class="nav-item" id="nav-atendimento" data-target="atendimento-module">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    Atendimento
+                </li>
+                <li class="nav-item" id="nav-reposicao" data-target="reposicao-module">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    Reposição
+                </li>
+                <li class="nav-item" id="nav-config" data-target="config-module">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    Configurações
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <img src="" id="user-avatar" class="avatar hidden">
+                    <div id="user-avatar-text" class="avatar">A</div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 13px;" id="logged-user-name">Admin</div>
+                        <div style="font-size: 11px; color: var(--text-sec);" id="logged-user-role">Administrador</div>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center mt-2">
+                    <button class="btn btn-secondary" onclick="app.toggleTheme()" title="Alternar Tema">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    </button>
+                    <button class="btn btn-danger" onclick="app.logout()">Sair</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Área de Conteúdo -->
+        <main class="content-area">
+            
+            <div class="header-mobile">
+                <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">☰</button>
+                <h2 style="margin:0; font-size: 16px; font-weight: 700; color: var(--accent);">STOCK SYSTEM</h2>
+            </div>
+
+            <!-- MÓDULO 1: PEDIDOS -->
+            <section id="pedidos-module" class="module active">
+                <div class="top-bar">
+                    <h1>Pedidos</h1>
+                    <div class="flex gap-2 flex-wrap">
+                        <div class="search-box">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" id="search-pedidos" class="form-control" placeholder="Buscar em todas as colunas...">
+                        </div>
+                        <button class="btn btn-primary req-pedidos-edit" onclick="app.openDrawer('drawer-pedido')">
+                            + Novo Pedido
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table id="tabela-pedidos">
+                            <thead>
+                                <tr id="thead-pedidos">
+                                    <!-- Renderizado Dinamicamente com Drag & Drop -->
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Renderizado via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MÓDULO 2: ATENDIMENTO -->
+            <section id="atendimento-module" class="module">
+                <div id="tv-header" class="tv-header">FILA DE EXPEDIÇÃO</div>
+                <div class="top-bar">
+                    <h1>Atendimento ao Cliente</h1>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="btn btn-secondary" onclick="app.toggleMonitorMode()" title="Coloca o sistema em tela cheia para exibição em TV">📺 Modo TV</button>
+                        <button class="btn btn-primary req-atend-edit" onclick="app.openDrawer('drawer-atendimento')">+ Novo Registro</button>
+                    </div>
+                </div>
+
+                <!-- Abas Renderizadas Dinamicamente -->
+                <div class="tabs">
+                    <!-- JS Injeta Aqui -->
+                </div>
+
+                <!-- Conteúdos Renderizados Dinamicamente -->
+            </section>
+
+            <!-- MÓDULO 3: REPOSIÇÃO -->
+            <section id="reposicao-module" class="module">
+                <div class="top-bar">
+                    <h1>Reposição de Estoque</h1>
+                </div>
+                <p style="color: var(--text-sec); margin-bottom: 1.5rem;">Copie e cole os dados diretamente do Excel.<br><strong>Origem:</strong> <code>Produto | Saída 30 dias | Estoque Atual</code><br><strong>Solicitante:</strong> <code>Produto | Estoque Atual</code></p>
+                
+                <div class="flex-col gap-2 mb-2">
+                    <h3 style="color: var(--accent); font-size: 14px; margin-top: 1rem;">🏭 Origem (Matriz)</h3>
+                    <div class="card flex-col mb-2">
+                        <input type="text" id="nome-matriz" class="form-control mb-1 req-repo-edit" value="FILIAL ORIGEM (MATRIZ)" style="font-weight: bold; background: transparent; border: 1px dashed var(--border); width: 100%; max-width: 400px;" title="Edite o nome da Matriz">
+                        <textarea id="repo-origem" class="form-control req-repo-edit" placeholder="Produto | Saída 30 Dias | Estoque Matriz&#10;Monitor Dell | 30 | 150"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mt-2 mb-1">
+                        <h3 style="color: var(--accent); font-size: 14px;">🏢 Filiais Solicitantes (Destinos)</h3>
+                        <button class="btn btn-secondary req-repo-edit" onclick="app.adicionarFilialDestino()">+ Adicionar Filial</button>
+                    </div>
+                    
+                    <div id="destinos-container" class="repo-grid">
+                        <!-- Bloco Dinâmico de Destino Inicial -->
+                        <div class="card flex-col destino-block">
+                            <div class="flex justify-between items-center mb-1 gap-2">
+                                <input type="text" class="form-control nome-destino req-repo-edit" value="FILIAL DESTINO 1" style="font-weight: bold; background: transparent; border: 1px dashed var(--border); flex: 1;" title="Edite o nome da Filial">
+                            </div>
+                            <textarea class="form-control txt-destino req-repo-edit" placeholder="Produto | Estoque Atual&#10;Monitor Dell | 5"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex gap-2" style="margin-top: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary req-repo-edit" onclick="app.analisarReposicao()">Analisar Necessidade de Reposição</button>
+                    <button class="btn btn-secondary req-repo-edit" onclick="app.exportarReposicao()" id="btn-export-repo" style="display: none;">Exportar Lista</button>
+                </div>
+
+                <!-- ABAS DE FILTRO DA REPOSIÇÃO -->
+                <div id="repo-filters" class="tabs hidden" style="margin-bottom: 1rem; flex-wrap: wrap;">
+                    <div class="tab active" onclick="app.filtrarReposicao('solicitar', this)">🔴 Preciso Solicitar</div>
+                    <div class="tab" onclick="app.filtrarReposicao('falta', this)">⚠️ Falta na Filial</div>
+                    <div class="tab" onclick="app.filtrarReposicao('perto', this)">🟡 Perto de Acabar</div>
+                    <div class="tab" onclick="app.filtrarReposicao('ok', this)">✔️ Não Preciso (OK)</div>
+                    <div class="tab" onclick="app.filtrarReposicao('so-filial', this)">🔵 Só na Filial</div>
+                    <div class="tab" onclick="app.filtrarReposicao('todos', this)">Mostrar Todos</div>
+                </div>
+
+                <div class="card" id="repo-result-card" style="display: none;">
+                    <div class="table-container">
+                        <table id="tabela-reposicao">
+                            <thead>
+                                <tr>
+                                    <th>Origem</th>
+                                    <th>Destino</th>
+                                    <th>Produto</th>
+                                    <th>Est. Matriz</th>
+                                    <th>Saída 30d</th>
+                                    <th>Est. Filial</th>
+                                    <th>Qtd. a Repor</th>
+                                    <th>Observação</th>
+                                    <th class="req-repo-edit">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MÓDULO 4: CONFIGURAÇÕES -->
+            <section id="config-module" class="module">
+                <h1>Configurações</h1>
+                
+                <div class="repo-grid">
+                    <!-- Aparência & Perfil -->
+                    <div class="flex-col gap-3">
+                        <div class="card">
+                            <h3 style="margin-bottom: 1rem;">🎨 Aparência</h3>
+                            <div class="flex justify-between items-center mb-3">
+                                <span>Tema do Sistema</span>
+                                <button class="btn btn-secondary" onclick="app.toggleTheme()">Alternar Tema</button>
+                            </div>
+                            <div style="margin-top: 1rem;">
+                                <label class="label">Cor de Destaque</label>
+                                <div class="color-picker">
+                                    <div class="color-circle active" style="background: #2F81F7;" onclick="app.setAccent('#2F81F7', this)"></div>
+                                    <div class="color-circle" style="background: #3FB950;" onclick="app.setAccent('#3FB950', this)"></div>
+                                    <div class="color-circle" style="background: #8957E5;" onclick="app.setAccent('#8957E5', this)"></div>
+                                    <div class="color-circle" style="background: #F0883E;" onclick="app.setAccent('#F0883E', this)"></div>
+                                    <div class="color-circle" style="background: #FF6AC1;" onclick="app.setAccent('#FF6AC1', this)"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3 style="margin-bottom: 1rem;">👤 Meu Perfil</h3>
+                            <div class="flex gap-3 items-center" style="margin-bottom: 1.5rem;">
+                                <div class="avatar" id="profile-avatar-preview" style="width: 64px; height: 64px; font-size: 24px;">A</div>
+                                <div>
+                                    <input type="file" id="upload-avatar" accept="image/*" style="display: none;" onchange="app.handleAvatarUpload(event)">
+                                    <button class="btn btn-secondary" onclick="document.getElementById('upload-avatar').click()">Alterar Foto</button>
+                                </div>
+                            </div>
+                            <form id="form-senha" onsubmit="event.preventDefault(); alert('Senha atualizada (Simulação)');">
+                                <div class="input-group">
+                                    <label class="label">Nova Senha</label>
+                                    <input type="password" class="form-control" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Salvar Senha</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Usuários -->
+                    <div class="card req-config-edit">
+                        <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                            <h3>👥 Gerenciar Usuários</h3>
+                            <button class="btn btn-primary" onclick="app.openDrawer('drawer-usuario')">+ Novo</button>
+                        </div>
+                        <div class="table-container">
+                            <table id="tabela-usuarios">
+                                <thead>
+                                    <tr><th>Nome</th><th>Login</th><th>Perfil</th><th>Ações</th></tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- === DRAWERS / MODAIS === -->
+    <div class="overlay" id="overlay" onclick="app.closeAllDrawers()"></div>
+
+    <!-- Modal de Confirmação Customizado (substitui confirm() bloqueado pelo sandbox) -->
+    <div id="confirm-modal" style="
+        display:none; position:fixed; inset:0; z-index:9999;
+        background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+        <div style="
+            background:var(--surface); border:1px solid var(--border);
+            border-radius:12px; padding:1.5rem; max-width:360px; width:90%;
+            box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+            <p id="confirm-modal-msg" style="margin:0 0 1.25rem; color:var(--text); font-size:0.95rem; line-height:1.5;"></p>
+            <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+                <button onclick="app._confirmResolve(false)" style="
+                    padding:0.5rem 1.1rem; border-radius:8px; border:1px solid var(--border);
+                    background:transparent; color:var(--text); cursor:pointer; font-size:0.9rem;">
+                    Cancelar
+                </button>
+                <button onclick="app._confirmResolve(true)" style="
+                    padding:0.5rem 1.1rem; border-radius:8px; border:none;
+                    background:var(--danger); color:#fff; cursor:pointer; font-size:0.9rem; font-weight:600;">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawer Pedido -->
+    <div class="drawer" id="drawer-pedido">
+        <div class="drawer-header">
+            <h3><span id="titulo-drawer-pedido">Novo</span> Pedido</h3>
+            <button class="btn-icon" onclick="app.closeAllDrawers()">✖</button>
+        </div>
+        <div class="drawer-body">
+            <form id="form-pedido">
+                <input type="hidden" id="ped-id">
+                <div class="input-group"><label class="label">Data</label><input type="date" id="ped-data" class="form-control" required></div>
+                <div class="input-group"><label class="label">Nº Pedido</label><input type="text" id="ped-num" class="form-control" required></div>
+                <div class="input-group">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="label" style="margin:0;">Status</label>
+                        <button type="button" class="btn-icon req-pedidos-edit" onclick="app.toggleStatusManager()" title="Gerenciar Status de Pedido" style="padding: 0.2rem; display: flex; align-items: center; gap: 0.2rem; font-size: 11px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                            Editar Opções
+                        </button>
+                    </div>
+                    <select id="ped-status" class="form-control" required>
+                        <!-- Renderizado via JS -->
+                    </select>
+                    
+                    <!-- Painel de Gerenciamento de Status -->
+                    <div id="status-manager" class="card hidden" style="margin-top: 0.5rem; padding: 1rem; border: 1px solid var(--border); background: var(--bg-main);">
+                        <label class="label">Adicionar / Remover Status</label>
+                        <div class="flex gap-1 mb-2">
+                            <input type="text" id="new-status-name" class="form-control" placeholder="Novo status...">
+                            <button type="button" class="btn btn-primary" onclick="app.adicionarStatus()" style="padding: 0.4rem 0.8rem;">+</button>
+                        </div>
+                        <ul id="status-list" style="max-height: 120px; overflow-y: auto; margin-top: 0.5rem; padding-right: 0.2rem; gap: 0.2rem; display: flex; flex-direction: column;">
+                            <!-- Renderizado via JS -->
+                        </ul>
+                    </div>
+                </div>
+                <div class="input-group"><label class="label">Vendedor</label><input type="text" id="ped-vend" class="form-control" required></div>
+                <div class="input-group"><label class="label">Cliente</label><input type="text" id="ped-cli" class="form-control" required></div>
+                
+                <h4 style="margin: 1.5rem 0 0.5rem 0; color: var(--accent);">Operacional</h4>
+                <div class="flex gap-2">
+                    <div class="input-group"><label class="label">Resp. Separação</label><input type="text" id="ped-sep" class="form-control"></div>
+                    <div class="input-group"><label class="label">Data</label><input type="date" id="ped-dtsep" class="form-control"></div>
+                </div>
+                <div class="flex gap-2">
+                    <div class="input-group"><label class="label">Resp. Conferência</label><input type="text" id="ped-conf" class="form-control"></div>
+                    <div class="input-group"><label class="label">Data</label><input type="date" id="ped-dtconf" class="form-control"></div>
+                </div>
+                <div class="flex gap-2">
+                    <div class="input-group"><label class="label">Resp. Expedição</label><input type="text" id="ped-exp" class="form-control"></div>
+                    <div class="input-group"><label class="label">Data</label><input type="date" id="ped-dtexp" class="form-control"></div>
+                </div>
+
+                <!-- DYNAMIC FIELDS CONTAINER (Campos Personalizados) -->
+                <div id="dynamic-fields-container" style="display: flex; flex-direction: column; width: 100%;"></div>
+
+                <!-- ADD FIELD MANAGER (Criador de Colunas) -->
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border);" class="req-pedidos-edit">
+                    <button type="button" class="btn btn-secondary" onclick="app.toggleFieldManager()" style="width: 100%; justify-content: center; font-size: 12px;">
+                        ⚙️ Adicionar / Gerenciar Novos Campos
+                    </button>
+                    
+                    <div id="field-manager-panel" class="card hidden" style="margin-top: 0.5rem; padding: 1rem; border: 1px solid var(--border); background: var(--bg-main);">
+                        <label class="label">Criar novo campo (Nova Coluna)</label>
+                        <div class="flex flex-col gap-1 mb-2">
+                            <input type="text" id="new-field-name" class="form-control" placeholder="Nome (ex: Placa do Caminhão)">
+                            <div class="flex gap-1 mt-2">
+                                <select id="new-field-type" class="form-control" style="flex: 1;" onchange="app.toggleFieldOptions()">
+                                    <option value="text">Texto</option>
+                                    <option value="date">Data</option>
+                                    <option value="number">Número</option>
+                                    <option value="select">Lista (Menu Suspenso)</option>
+                                </select>
+                                <button type="button" class="btn btn-primary" onclick="app.adicionarCampo()">+ Criar</button>
+                            </div>
+                            <input type="text" id="new-field-options" class="form-control hidden mt-2" placeholder="Opções separadas por vírgula (ex: A, B, C)">
+                        </div>
+                        
+                        <label class="label" style="margin-top: 1rem;">Campos Criados</label>
+                        <ul id="custom-fields-list" style="display: flex; flex-direction: column; gap: 0.2rem; max-height: 120px; overflow-y: auto;">
+                            <!-- Renderizado via JS -->
+                        </ul>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+        <div class="drawer-footer">
+            <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Cancelar</button>
+            <button class="btn btn-primary req-pedidos-edit" onclick="app.salvarPedido()">Salvar</button>
+        </div>
+    </div>
+
+    <!-- Drawer Atendimento -->
+    <div class="drawer" id="drawer-atendimento">
+        <div class="drawer-header">
+            <h3><span id="titulo-drawer-atend">Novo</span> Atendimento</h3>
+            <button class="btn-icon" onclick="app.closeAllDrawers()">✖</button>
+        </div>
+        <div class="drawer-body">
+            <form id="form-atend">
+                <input type="hidden" id="atend-id">
+                <div class="input-group">
+                    <label class="label">Nº Pedido(s)</label>
+                    <div id="atend-pedidos-list" style="display:flex; flex-direction:column; gap:0.5rem;">
+                        <!-- Renderizado via JS -->
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="app.adicionarCampoPedidoAtend()" style="margin-top:0.5rem; padding:0.4rem 0.8rem; font-size:0.85rem;">+ Adicionar outro pedido</button>
+                </div>
+                <div class="input-group"><label class="label">Nome (Cliente/Transp.)</label><input type="text" id="atend-nome" class="form-control" required></div>
+                
+                <div class="flex gap-2" style="align-items: flex-start;">
+                    <!-- COLUNA TIPO -->
+                    <div class="input-group" style="flex: 1;">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="label" style="margin:0;">Tipo</label>
+                            <button type="button" class="btn-icon req-atend-edit" onclick="app.toggleTipoAtendManager()" title="Gerenciar Tipos de Atendimento" style="padding: 0.2rem; display: flex; align-items: center; gap: 0.2rem; font-size: 11px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                Editar
+                            </button>
+                        </div>
+                        <select id="atend-tipo" class="form-control" required>
+                            <!-- Renderizado via JS -->
+                        </select>
+                        
+                        <!-- Painel de Gerenciamento de Tipos -->
+                        <div id="tipo-atend-manager" class="card hidden" style="margin-top: 0.5rem; padding: 1rem; border: 1px solid var(--border); background: var(--bg-main);">
+                            <label class="label">Adicionar / Remover Tipo</label>
+                            <div class="flex gap-1 mb-2">
+                                <input type="text" id="new-tipo-atend-name" class="form-control" placeholder="Novo tipo...">
+                                <button type="button" class="btn btn-primary" onclick="app.adicionarTipoAtend()" style="padding: 0.4rem 0.8rem;">+</button>
+                            </div>
+                            <ul id="tipo-atend-list" style="max-height: 120px; overflow-y: auto; margin-top: 0.5rem; padding-right: 0.2rem; gap: 0.2rem; display: flex; flex-direction: column;">
+                                <!-- Renderizado via JS -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- GERENCIADOR DE STATUS NF (compartilhado, aplicado por pedido) -->
+                    <div class="input-group" style="flex: 1;">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="label" style="margin:0;">Status da NF (por pedido)</label>
+                            <button type="button" class="btn-icon req-atend-edit" onclick="app.toggleStatusNFManager()" title="Gerenciar Status da NF" style="padding: 0.2rem; display: flex; align-items: center; gap: 0.2rem; font-size: 11px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                Editar
+                            </button>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin:0;">Defina o status de cada pedido na lista acima.</p>
+                        
+                        <!-- Painel de Gerenciamento de Status NF -->
+                        <div id="status-nf-manager" class="card hidden" style="margin-top: 0.5rem; padding: 1rem; border: 1px solid var(--border); background: var(--bg-main);">
+                            <label class="label">Adicionar / Remover</label>
+                            <div class="flex gap-1 mb-2">
+                                <input type="text" id="new-status-nf-name" class="form-control" placeholder="Novo status NF...">
+                                <button type="button" class="btn btn-primary" onclick="app.adicionarStatusNF()" style="padding: 0.4rem 0.8rem;">+</button>
+                            </div>
+                            <ul id="status-nf-list" style="max-height: 120px; overflow-y: auto; margin-top: 0.5rem; padding-right: 0.2rem; gap: 0.2rem; display: flex; flex-direction: column;">
+                                <!-- Renderizado via JS -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DYNAMIC FIELDS CONTAINER (ATENDIMENTO) -->
+                <div id="dynamic-fields-atend-container" style="display: flex; flex-direction: column; width: 100%;"></div>
+
+                <!-- ADD FIELD MANAGER (Criador de Colunas - ATENDIMENTO) -->
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border);" class="req-atend-edit">
+                    <button type="button" class="btn btn-secondary" onclick="app.toggleFieldAtendManager()" style="width: 100%; justify-content: center; font-size: 12px;">
+                        ⚙️ Adicionar / Gerenciar Novos Campos
+                    </button>
+                    
+                    <div id="field-manager-atend-panel" class="card hidden" style="margin-top: 0.5rem; padding: 1rem; border: 1px solid var(--border); background: var(--bg-main);">
+                        <label class="label">Criar novo campo</label>
+                        <div class="flex flex-col gap-1 mb-2">
+                            <input type="text" id="new-field-atend-name" class="form-control" placeholder="Nome (ex: Placa, Doca)">
+                            <div class="flex gap-1 mt-2">
+                                <select id="new-field-atend-type" class="form-control" style="flex: 1;" onchange="app.toggleFieldAtendOptions()">
+                                    <option value="text">Texto</option>
+                                    <option value="date">Data</option>
+                                    <option value="number">Número</option>
+                                    <option value="select">Lista (Menu Suspenso)</option>
+                                </select>
+                                <button type="button" class="btn btn-primary" onclick="app.adicionarCampoAtend()">+ Criar</button>
+                            </div>
+                            <input type="text" id="new-field-atend-options" class="form-control hidden mt-2" placeholder="Opções separadas por vírgula (ex: Doca 1, Doca 2)">
+                        </div>
+                        
+                        <label class="label" style="margin-top: 1rem;">Campos Criados</label>
+                        <ul id="custom-fields-atend-list" style="display: flex; flex-direction: column; gap: 0.2rem; max-height: 120px; overflow-y: auto;">
+                            <!-- Renderizado via JS -->
+                        </ul>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+        <div class="drawer-footer">
+            <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Cancelar</button>
+            <button class="btn btn-primary req-atend-edit" onclick="app.salvarAtendimento()">Registrar</button>
+        </div>
+    </div>
+
+    <!-- Drawer Motorista -->
+    <div class="drawer" id="drawer-motorista">
+        <div class="drawer-header">
+            <h3><span id="titulo-drawer-mot">Novo</span> Motorista</h3>
+            <button class="btn-icon" onclick="app.closeAllDrawers()">✖</button>
+        </div>
+        <div class="drawer-body">
+            <form id="form-motorista" onsubmit="event.preventDefault(); app.salvarMotorista();">
+                <input type="hidden" id="mot-id">
+                <div class="input-group">
+                    <label class="label">Cliente (Razão Social)</label>
+                    <input type="text" id="mot-cliente" class="form-control" required placeholder="Ex: Transportadora TechCorp" list="clientes-list">
+                    <datalist id="clientes-list"></datalist>
+                </div>
+                <div class="input-group">
+                    <label class="label">Nome do Motorista</label>
+                    <input type="text" id="mot-nome" class="form-control" required placeholder="Nome completo">
+                </div>
+                <div class="input-group">
+                    <label class="label">Placa do Veículo</label>
+                    <input type="text" id="mot-placa" class="form-control" required placeholder="Ex: ABC-1234">
+                </div>
+                <div class="input-group">
+                    <label class="label">Documento (CPF / RG / CNH)</label>
+                    <input type="text" id="mot-doc" class="form-control" required placeholder="Número do documento">
+                </div>
+            </form>
+        </div>
+        <div class="drawer-footer">
+            <button type="button" class="btn btn-secondary" onclick="app.closeAllDrawers()">Cancelar</button>
+            <button type="button" class="btn btn-primary req-atend-edit" onclick="app.salvarMotorista()">Salvar</button>
+        </div>
+    </div>
+
+    <!-- Drawer Usuário -->
+    <div class="drawer" id="drawer-usuario">
+        <div class="drawer-header">
+            <h3><span id="titulo-drawer-usuario">Novo</span> Usuário</h3>
+            <button class="btn-icon" onclick="app.closeAllDrawers()">✖</button>
+        </div>
+        <div class="drawer-body">
+            <form id="form-usuario">
+                <input type="hidden" id="user-id">
+                <div class="input-group"><label class="label">Nome Completo</label><input type="text" id="user-nome" class="form-control" required></div>
+                <div class="input-group"><label class="label">Login</label><input type="text" id="user-login" class="form-control" required></div>
+                <div class="input-group"><label class="label">Senha</label><input type="password" id="user-senha" class="form-control" required></div>
+                <div class="input-group"><label class="label">Perfil</label>
+                    <select id="user-perfil" class="form-control" required onchange="app.handlePerfilChange()">
+                        <option value="Operador">Operador</option>
+                        <option value="Administrador">Administrador</option>
+                    </select>
+                </div>
+                
+                <!-- Grade de Permissões -->
+                <div class="card" style="padding: 1rem; margin-top: 1rem; border: 1px solid var(--border); background: var(--bg-main);">
+                    <h4 style="margin: 0 0 1rem 0; color: var(--accent); font-size: 13px; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem;">Permissões Específicas</h4>
+                    
+                    <div class="flex justify-between items-center mb-2">
+                        <span style="font-size: 12px; font-weight: 600; width: 100px;">📦 Pedidos</span>
+                        <div class="flex gap-2">
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-pedidos-ver" class="perm-cb"> Visualizar</label>
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-pedidos-editar" class="perm-cb"> Editar/Lançar</label>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mb-2">
+                        <span style="font-size: 12px; font-weight: 600; width: 100px;">🤝 Atendimento</span>
+                        <div class="flex gap-2">
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-atend-ver" class="perm-cb"> Visualizar</label>
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-atend-editar" class="perm-cb"> Editar/Lançar</label>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mb-2">
+                        <span style="font-size: 12px; font-weight: 600; width: 100px;">🔄 Reposição</span>
+                        <div class="flex gap-2">
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-repo-ver" class="perm-cb"> Visualizar</label>
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-repo-editar" class="perm-cb"> Editar/Lançar</label>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <span style="font-size: 12px; font-weight: 600; width: 100px;">⚙️ Config.</span>
+                        <div class="flex gap-2">
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-config-ver" class="perm-cb"> Visualizar</label>
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-config-editar" class="perm-cb"> Editar/Lançar</label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="drawer-footer">
+            <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Cancelar</button>
+            <button class="btn btn-primary req-config-edit" onclick="app.salvarUsuario()">Salvar</button>
+        </div>
+    </div>
+
+    <!-- === LÓGICA DO SISTEMA === -->
+    <script>
+        const app = (function() {
+            // === ESTADO (IN-MEMORY) ===
+            const state = {
+                currentUser: null,
+                adminId: null,
+                users: [],
+                pedidos: [],
+                atendimentos: [],
+                motoristas: [],
+                reposicaoData: [], // Guarda as análises do estoque com cruzamento
+                statusList: ["Pendente", "Em Separação", "Em Conferência", "Em Expedição", "Concluído"],
+                tipoAtendList: ["Transportadora", "Cliente Retira"], 
+                statusNFList: ["Aguardando", "Emitida", "Dispensada"], 
+                customFields: [], 
+                customFieldsAtend: [], 
+                colOrder: ['data', 'num', 'status', 'vend', 'cli', 'sep', 'conf', 'exp'], 
+                tabsOrder: ['dashboard', 'motoristas', 'transp', 'cliente', 'financeiro', 'finalizados'],
+            };
+
+            // Helpers de cor para badges
+            const getStatusColor = (status) => {
+                const map = {
+                    "Pendente": { color: "var(--warning)", bg: "var(--warning-bg)" },
+                    "Em Separação": { color: "var(--accent)", bg: "rgba(47, 129, 247, 0.15)" },
+                    "Em Conferência": { color: "var(--info)", bg: "var(--info-bg)" },
+                    "Em Expedição": { color: "var(--orange)", bg: "var(--orange-bg)" },
+                    "Concluído": { color: "var(--success)", bg: "var(--success-bg)" }
+                };
+                return map[status] || { color: "var(--text-main)", bg: "var(--border)" }; 
+            };
+
+            // === LÓGICA DE PERMISSÕES ===
+            function applyPermissions() {
+    if (!state.currentUser) return;
+    
+    const p = state.currentUser.permissoes || {
+        pedidos:    { ver: true, editar: true },
+        atendimento:{ ver: true, editar: true },
+        reposicao:  { ver: true, editar: true },
+        config:     { ver: true, editar: true }
+    };
+
+    document.body.setAttribute('data-perm-pedidos-ver', p.pedidos.ver);
+    document.body.setAttribute('data-perm-pedidos-edit', p.pedidos.editar);
+    
+    document.body.setAttribute('data-perm-atend-ver', p.atendimento.ver);
+    document.body.setAttribute('data-perm-atend-edit', p.atendimento.editar);
+    
+    document.body.setAttribute('data-perm-repo-ver', p.reposicao.ver);
+    document.body.setAttribute('data-perm-repo-edit', p.reposicao.editar);
+    
+    document.body.setAttribute('data-perm-config-ver', p.config.ver);
+    document.body.setAttribute('data-perm-config-edit', p.config.editar);
+
+    const activeNav = document.querySelector('.nav-item.active');
+    if (activeNav && window.getComputedStyle(activeNav).display === 'none') {
+        const firstVisible = Array.from(document.querySelectorAll('.nav-item')).find(n => window.getComputedStyle(n).display !== 'none');
+        if (firstVisible) firstVisible.click();
+    }
+}
+
+            // === LÓGICA DE DRAG & DROP (Cabeçalho da Tabela) ===
+            let draggedCol = null;
+
+            function handleDragStart(e, colId) {
+                draggedCol = colId;
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => e.target.style.opacity = '0.5', 0);
+            }
+
+            function handleDragOver(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                return false;
+            }
+
+            function handleDrop(e, targetColId) {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                if (draggedCol === targetColId || !draggedCol) return;
+
+                const fromIdx = state.colOrder.indexOf(draggedCol);
+                const toIdx = state.colOrder.indexOf(targetColId);
+
+                if (fromIdx > -1 && toIdx > -1) {
+                    state.colOrder.splice(fromIdx, 1);
+                    state.colOrder.splice(toIdx, 0, draggedCol);
+                    renderPedidos(); 
+                }
+                draggedCol = null;
+            }
+
+            // === LÓGICA DE DRAG & DROP (ABAS DE ATENDIMENTO) ===
+            let draggedTab = null;
+
+            function handleTabDragStart(e, tabId) {
+                draggedTab = tabId;
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => e.target.style.opacity = '0.5', 0);
+            }
+
+            function handleTabDragOver(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                return false;
+            }
+
+            function handleTabDrop(e, targetTabId) {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                if (draggedTab === targetTabId || !draggedTab) return;
+
+                const fromIdx = state.tabsOrder.indexOf(draggedTab);
+                const toIdx = state.tabsOrder.indexOf(targetTabId);
+
+                if (fromIdx > -1 && toIdx > -1) {
+                    state.tabsOrder.splice(fromIdx, 1);
+                    state.tabsOrder.splice(toIdx, 0, draggedTab);
+                    renderTabsAtend(); 
+                    
+                    const activeContent = document.querySelector('.tab-content.active');
+                    if(activeContent) {
+                         const currentTab = document.querySelector(`.tab[data-tab-id="${activeContent.id.replace('tab-', '')}"]`);
+                         if(currentTab) {
+                             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                             currentTab.classList.add('active');
+                         }
+                    }
+                }
+                draggedTab = null;
+            }
+
+            // === INICIALIZAÇÃO & LOGIN ===
+            function init() {
+                document.getElementById('form-login').addEventListener('submit', handleLogin);
+                
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.addEventListener('click', () => switchModule(item));
+                });
+
+                document.getElementById('search-pedidos').addEventListener('input', (e) => filterTable('tabela-pedidos', e.target.value));
+
+                // Escutar botão ESC para sair do modo monitor
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && document.body.classList.contains('monitor-mode')) {
+                        toggleMonitorMode();
+                    }
+                });
+
+                // Dados de Exemplo para Reposição
+                document.getElementById('repo-origem').value = 
+`TESTE 1\t30\t10
+TESTE 2\t30\t10
+TESTE 3\t30\t10
+TESTE 4\t30\t10
+TESTE 5\t30\t10`;
+
+                document.querySelector('.txt-destino').value = 
+`TESTE 2\t100
+TESTE 3\t100
+TESTE 4\t100
+TESTE 5\t100
+TESTE 6\t100`;
+
+                renderStatusUI();
+                renderTipoAtendUI(); 
+                renderStatusNFUI();  
+                renderTabsAtend();   
+            }
+
+           async function handleLogin(e) {
+    e.preventDefault();
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value;
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.innerText = 'Entrando...';
+    btn.disabled = true;
+
+    // Se for email → login como admin via Supabase Auth
+    if (user.includes('@')) {
+        const { data, error } = await db.auth.signInWithPassword({
+            email: user,
+            password: pass
+        })
+
+        if (error) {
+            document.getElementById('login-error').style.display = 'block';
+            btn.innerText = 'Entrar';
+            btn.disabled = false;
+            return;
+        }
+
+        state.currentUser = {
+            nome: 'Admin',
+            perfil: 'admin',
+            email: data.user.email,
+            theme: 'dark',
+            accent: '#2F81F7'
+        };
+        state.adminId = data.user.id;
+
+    } else {
+        // Se não for email → busca na tabela usuarios_sistema
+        const { data: usuarios, error } = await db
+            .from('usuarios_sistema')
+            .select('*')
+            .eq('login', user)
+            .eq('senha', pass)
+            .eq('ativo', true)
+            .single()
+
+        if (error || !usuarios) {
+            document.getElementById('login-error').style.display = 'block';
+            btn.innerText = 'Entrar';
+            btn.disabled = false;
+            return;
+        }
+
+        state.currentUser = {
+            nome: usuarios.nome,
+            perfil: usuarios.perfil,
+            permissoes: usuarios.permissoes || {
+                pedidos:     { ver: true, editar: false },
+                atendimento: { ver: true, editar: false },
+                reposicao:   { ver: true, editar: false },
+                config:      { ver: false, editar: false }
+            },
+            theme: 'dark',
+            accent: '#2F81F7'
+        };
+        // Operador usa o admin_id do seu criador para acessar os dados compartilhados
+        state.adminId = usuarios.admin_id;
+    }
+
+    document.body.setAttribute('data-theme', 'dark');
+    app.setAccent('#2F81F7', null);
+    applyPermissions();
+
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('main-screen').classList.remove('hidden');
+
+    document.getElementById('logged-user-name').innerText = state.currentUser.nome;
+    document.getElementById('logged-user-role').innerText = state.currentUser.perfil;
+    document.getElementById('user-avatar-text').innerText = state.currentUser.nome.charAt(0).toUpperCase();
+    document.getElementById('profile-avatar-preview').innerText = state.currentUser.nome.charAt(0).toUpperCase();
+
+    renderAll();
+}
+        
+
+            function logout() {
+                pararPolling();
+                state.currentUser = null;
+                if(document.body.classList.contains('monitor-mode')) toggleMonitorMode();
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('main-screen').classList.add('hidden');
+                document.getElementById('form-login').reset();
+                document.getElementById('login-error').style.display = 'none';
+            }
+
+            // === NAVEGAÇÃO & UI ===
+            function switchModule(navItem) {
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                navItem.classList.add('active');
+                
+                const targetId = navItem.getAttribute('data-target');
+                document.querySelectorAll('.module').forEach(mod => mod.classList.remove('active'));
+                document.getElementById(targetId).classList.add('active');
+
+                if(window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.remove('mobile-open');
+                }
+            }
+
+            function switchTab(tabId, el) {
+                const tabsContainer = el.closest('.tabs');
+                tabsContainer.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                el.classList.add('active');
+                
+                if (tabsContainer.id === 'repo-filters') {
+                    // Handled by filtrarReposicao
+                } else {
+                    document.querySelectorAll('#atendimento-module .tab-content').forEach(tc => tc.classList.remove('active'));
+                    const targetContent = document.getElementById(tabId);
+                    if(targetContent) targetContent.classList.add('active');
+                    
+                    // Atualiza o Título da TV se estiver no modo Monitor
+                    const tvTitle = document.getElementById('tv-header');
+                    if(tvTitle) tvTitle.innerText = `FILA - ${el.textContent.toUpperCase()}`;
+                }
+            }
+
+            function toggleMonitorMode() {
+                const body = document.body;
+                body.classList.toggle('monitor-mode');
+                
+                if (body.classList.contains('monitor-mode')) {
+                    // Atualiza o título baseado na aba atual
+                    const activeTab = document.querySelector('#atendimento-module .tab.active');
+                    if(activeTab) document.getElementById('tv-header').innerText = `FILA - ${activeTab.textContent.toUpperCase()}`;
+                    
+                    // Tenta colocar em full screen
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen API blocked:", err));
+                    }
+                } else {
+                    if (document.exitFullscreen && document.fullscreenElement) {
+                        document.exitFullscreen().catch(err => console.log("Fullscreen exit error:", err));
+                    }
+                }
+            }
+
+            function openDrawer(id, data = null) {
+                document.getElementById('overlay').classList.add('active');
+                document.getElementById(id).classList.add('active');
+                
+                if (id === 'drawer-pedido') {
+                    const form = document.getElementById('form-pedido');
+                    form.reset();
+                    if(data) {
+                        document.getElementById('titulo-drawer-pedido').innerText = 'Editar';
+                        document.getElementById('ped-id').value = data.id;
+                        document.getElementById('ped-data').value = data.data;
+                        document.getElementById('ped-num').value = data.num;
+                        document.getElementById('ped-status').value = data.status;
+                        document.getElementById('ped-vend').value = data.vend;
+                        document.getElementById('ped-cli').value = data.cli;
+                        document.getElementById('ped-sep').value = data.sep;
+                        document.getElementById('ped-dtsep').value = data.dtsep;
+                        document.getElementById('ped-conf').value = data.conf;
+                        document.getElementById('ped-dtconf').value = data.dtconf;
+                        document.getElementById('ped-exp').value = data.exp;
+                        document.getElementById('ped-dtexp').value = data.dtexp;
+                        
+                        renderDynamicFields(data.customData);
+                    } else {
+                        document.getElementById('titulo-drawer-pedido').innerText = 'Novo';
+                        document.getElementById('ped-id').value = '';
+                        document.getElementById('ped-data').value = new Date().toISOString().split('T')[0];
+                        
+                        renderDynamicFields({});
+                    }
+                    
+                    document.getElementById('field-manager-panel').classList.add('hidden');
+                } else if (id === 'drawer-atendimento') {
+                    const form = document.getElementById('form-atend');
+                    form.reset();
+                    if(data) {
+                         document.getElementById('titulo-drawer-atend').innerText = 'Editar';
+                         document.getElementById('atend-id').value = data.id;
+                         
+                         let pedidosLista = data.customData && data.customData._pedidosLista;
+                         if (!pedidosLista || pedidosLista.length === 0) {
+                             // Fallback: reconstrói a partir do campo num antigo (compatibilidade com atendimentos criados antes desta atualização)
+                             const numerosExistentes = (data.num || '').split(',').map(n => n.trim()).filter(n => n !== '');
+                             pedidosLista = numerosExistentes.map(n => ({ num: n, statusNF: data.statusNF || state.statusNFList[0] || '' }));
+                         }
+                         renderPedidosAtendList(pedidosLista);
+                         
+                         document.getElementById('atend-nome').value = data.nome;
+                         document.getElementById('atend-tipo').value = data.tipo;
+                         renderDynamicFieldsAtend(data.customData);
+                    } else {
+                         document.getElementById('titulo-drawer-atend').innerText = 'Novo';
+                         document.getElementById('atend-id').value = '';
+                         renderPedidosAtendList([{ num: '', statusNF: state.statusNFList[0] || '' }]);
+                         renderDynamicFieldsAtend({});
+                    }
+                    document.getElementById('tipo-atend-manager').classList.add('hidden');
+                    document.getElementById('status-nf-manager').classList.add('hidden');
+                    document.getElementById('field-manager-atend-panel').classList.add('hidden');
+                } else if (id === 'drawer-motorista') {
+                    const form = document.getElementById('form-motorista');
+                    form.reset();
+                    if(data) {
+                        document.getElementById('titulo-drawer-mot').innerText = 'Editar';
+                        document.getElementById('mot-id').value = data.id;
+                        document.getElementById('mot-cliente').value = data.cliente;
+                        document.getElementById('mot-nome').value = data.nome;
+                        document.getElementById('mot-placa').value = data.placa;
+                        document.getElementById('mot-doc').value = data.documento;
+                    } else {
+                        document.getElementById('titulo-drawer-mot').innerText = 'Novo';
+                        document.getElementById('mot-id').value = '';
+                    }
+                } else if (id === 'drawer-usuario') {
+                    const form = document.getElementById('form-usuario');
+                    form.reset();
+                    if(data) {
+                        document.getElementById('titulo-drawer-usuario').innerText = 'Editar';
+                        document.getElementById('user-id').value = data.id;
+                        document.getElementById('user-nome').value = data.nome;
+                        document.getElementById('user-login').value = data.login;
+                        document.getElementById('user-senha').value = data.senha;
+                        document.getElementById('user-perfil').value = data.perfil;
+                        
+                        const p = data.permissoes;
+                        document.getElementById('perm-pedidos-ver').checked = p.pedidos.ver;
+                        document.getElementById('perm-pedidos-editar').checked = p.pedidos.editar;
+                        document.getElementById('perm-atend-ver').checked = p.atendimento.ver;
+                        document.getElementById('perm-atend-editar').checked = p.atendimento.editar;
+                        document.getElementById('perm-repo-ver').checked = p.reposicao.ver;
+                        document.getElementById('perm-repo-editar').checked = p.reposicao.editar;
+                        document.getElementById('perm-config-ver').checked = p.config.ver;
+                        document.getElementById('perm-config-editar').checked = p.config.editar;
+                    } else {
+                        document.getElementById('titulo-drawer-usuario').innerText = 'Novo';
+                        document.getElementById('user-id').value = '';
+                        // Set defaults to true just to save clicks
+                        document.querySelectorAll('.perm-cb').forEach(cb => cb.checked = true);
+                        document.getElementById('user-perfil').value = 'Operador';
+                    }
+                }
+            }
+
+            function closeAllDrawers() {
+                document.getElementById('overlay').classList.remove('active');
+                document.querySelectorAll('.drawer').forEach(d => d.classList.remove('active'));
+            }
+
+            function toggleTheme() {
+                const newTheme = document.body.getAttribute('data-theme') === "dark" ? "light" : "dark";
+                document.body.setAttribute('data-theme', newTheme);
+                if (state.currentUser) state.currentUser.theme = newTheme;
+            }
+
+            function setAccent(color, el) {
+                document.documentElement.style.setProperty('--accent', color);
+                document.documentElement.style.setProperty('--accent-hover', color); 
+                
+                document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('active'));
+                
+                if (el) {
+                    el.classList.add('active');
+                } else {
+                    // Match the color to activate the right circle on login
+                    const colors = ['#2F81F7', '#3FB950', '#8957E5', '#F0883E', '#FF6AC1'];
+                    const idx = colors.indexOf(color.toUpperCase());
+                    if(idx > -1) {
+                        const circles = document.querySelectorAll('.color-circle');
+                        if(circles[idx]) circles[idx].classList.add('active');
+                    }
+                }
+
+                if (state.currentUser) state.currentUser.accent = color;
+            }
+
+            function handleAvatarUpload(event) {
+                const file = event.target.files[0];
+                if(file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('user-avatar').src = e.target.result;
+                        document.getElementById('user-avatar').classList.remove('hidden');
+                        document.getElementById('user-avatar-text').classList.add('hidden');
+                        
+                        document.getElementById('profile-avatar-preview').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+                    }
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            // Substitui confirm() nativo (bloqueado pelo sandbox do Gemini Canvas)
+            function confirmar(msg) {
+                return new Promise(resolve => {
+                    document.getElementById('confirm-modal-msg').innerText = msg;
+                    const modal = document.getElementById('confirm-modal');
+                    modal.style.display = 'flex';
+                    app._confirmResolve = (result) => {
+                        modal.style.display = 'none';
+                        resolve(result);
+                    };
+                });
+            }
+
+            async function renderAll() {
+                carregarUsuarios();
+                await carregarConfigs();
+                await carregarPedidos();
+                await carregarAtendimentos();
+                await carregarMotoristas();
+                renderPedidos();
+                renderAtendimentos();
+                renderUsuarios();
+                iniciarPolling();
+            }
+
+            let _pollingInterval = null;
+
+            function iniciarPolling() {
+                // Limpa polling anterior se existir
+                if (_pollingInterval) clearInterval(_pollingInterval);
+                
+                // Atualiza dados a cada 10 segundos automaticamente
+                _pollingInterval = setInterval(async () => {
+                    await carregarPedidos();
+                    await carregarAtendimentos();
+                    await carregarMotoristas();
+                }, 10000);
+            }
+
+            function pararPolling() {
+                if (_pollingInterval) {
+                    clearInterval(_pollingInterval);
+                    _pollingInterval = null;
+                }
+            }
+
+            async function salvarConfig(chave, valor) {
+                if (!state.adminId) return;
+                await db.from('configuracoes_sistema')
+                    .upsert({ admin_id: state.adminId, chave, valor },
+                             { onConflict: 'admin_id,chave' });
+            }
+
+            async function carregarConfigs() {
+                if (!state.adminId) return;
+
+                const { data, error } = await db
+                    .from('configuracoes_sistema')
+                    .select('chave, valor')
+                    .eq('admin_id', state.adminId);
+
+                if (error || !data) return;
+
+                data.forEach(row => {
+                    switch(row.chave) {
+                        case 'statusList':
+                            if (Array.isArray(row.valor) && row.valor.length > 0)
+                                state.statusList = row.valor;
+                            break;
+                        case 'statusNFList':
+                            if (Array.isArray(row.valor) && row.valor.length > 0)
+                                state.statusNFList = row.valor;
+                            break;
+                        case 'customFields':
+                            if (Array.isArray(row.valor))
+                                state.customFields = row.valor;
+                            break;
+                        case 'customFieldsAtend':
+                            if (Array.isArray(row.valor))
+                                state.customFieldsAtend = row.valor;
+                            break;
+                        case 'colOrder':
+                            if (Array.isArray(row.valor) && row.valor.length > 0) {
+                                // Garante que customFields salvos entrem no colOrder
+                                const base = ['data','num','status','vend','cli','sep','conf','exp'];
+                                const customIds = state.customFields.map(cf => cf.id);
+                                state.colOrder = row.valor.filter(id => base.includes(id) || customIds.includes(id));
+                                // Adiciona qualquer customField que não esteja no colOrder
+                                customIds.forEach(id => { if (!state.colOrder.includes(id)) state.colOrder.push(id); });
+                            }
+                            break;
+                    }
+                });
+
+                renderStatusUI();
+                renderTipoAtendUI();
+                renderStatusNFUI();
+                renderTabsAtend();
+            }
+
+            async function carregarPedidos() {
+                if (!state.adminId) return;
+
+                const { data, error } = await db
+                    .from('pedidos')
+                    .select('*')
+                    .eq('admin_id', state.adminId)
+                    .order('created_at', { ascending: false });
+
+                if(error) { console.error('Erro ao carregar pedidos:', error.message); return; }
+
+                if(data) {
+                    state.pedidos = data.map(p => ({
+                        id: p.id,
+                        data: p.data || '',
+                        num: p.num || '',
+                        status: p.status || '',
+                        vend: p.vend || '',
+                        cli: p.cli || '',
+                        sep: p.sep || '',
+                        dtsep: p.dtsep || '',
+                        conf: p.conf || '',
+                        dtconf: p.dtconf || '',
+                        exp: p.exp || '',
+                        dtexp: p.dtexp || '',
+                        customData: p.custom_data || {}
+                    }));
+                    renderPedidos();
+                }
+            }
+
+            async function carregarAtendimentos() {
+                if (!state.adminId) return;
+
+                const { data, error } = await db
+                    .from('atendimentos')
+                    .select('*')
+                    .eq('admin_id', state.adminId)
+                    .order('created_at', { ascending: false });
+
+                if(error) { console.error('Erro ao carregar atendimentos:', error.message); return; }
+
+                if(data) {
+                    state.atendimentos = data.map(a => ({
+                        id: a.id,
+                        num: a.num || '',
+                        nome: a.nome || '',
+                        tipo: a.tipo || '',
+                        statusNF: a.status_nf || 'Aguardando',
+                        data: a.data || '',
+                        hora: a.hora || '',
+                        status: a.status || 'Aguardando',
+                        dataFinalizacao: a.data_finalizacao || '',
+                        horaFinalizacao: a.hora_finalizacao || '',
+                        customData: a.custom_data || {}
+                    }));
+                    renderAtendimentos();
+                }
+            }
+
+            async function carregarMotoristas() {
+                if (!state.adminId) return;
+
+                const { data, error } = await db
+                    .from('motoristas')
+                    .select('*')
+                    .eq('admin_id', state.adminId)
+                    .order('nome', { ascending: true });
+
+                if(error) { console.error('Erro ao carregar motoristas:', error.message); return; }
+
+                if(data) {
+                    state.motoristas = data.map(m => ({
+                        id: m.id,
+                        cliente: m.cliente || '',
+                        nome: m.nome || '',
+                        placa: m.placa || '',
+                        documento: m.documento || ''
+                    }));
+                    renderMotoristas();
+                }
+            }
+
+            function formatDate(dateString) {
+                if(!dateString) return "-";
+                const [y, m, d] = dateString.split('-');
+                return `${d}/${m}/${y}`;
+            }
+
+            // --- STATUS DINÂMICOS (PEDIDOS) ---
+            function renderStatusUI() {
+                const select = document.getElementById('ped-status');
+                const list = document.getElementById('status-list');
+                const currentVal = select.value;
+                
+                select.innerHTML = '';
+                list.innerHTML = '';
+
+                state.statusList.forEach(status => {
+                    const opt = document.createElement('option');
+                    opt.value = status;
+                    opt.textContent = status;
+                    select.appendChild(opt);
+
+                    const li = document.createElement('li');
+                    li.className = 'flex flex-col w-full';
+                    li.style.padding = '0.4rem 0.6rem';
+                    li.style.backgroundColor = 'var(--hover-bg)';
+                    li.style.borderRadius = '4px';
+                    li.style.marginBottom = '0.2rem';
+                    
+                    const safeId = status.replace(/[^a-zA-Z0-9]/g, '-');
+                    
+                    li.innerHTML = `
+                        <!-- MODO VISUALIZAÇÃO -->
+                        <div id="view-${safeId}" class="flex justify-between items-center w-full">
+                            <span style="font-size: 13px; font-weight: 600;">${status}</span>
+                            <div class="flex gap-1 req-pedidos-edit">
+                                <button type="button" class="btn-icon" onclick="app.iniciarEdicaoStatus('${status}')" style="color: var(--accent); padding: 0.2rem;" title="Editar">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                </button>
+                                <button type="button" class="btn-icon" onclick="app.iniciarExclusaoStatus('${status}')" style="color: var(--danger); padding: 0.2rem;" title="Excluir">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- MODO EDIÇÃO -->
+                        <div id="edit-${safeId}" class="hidden flex gap-1 w-full items-center">
+                            <input type="text" id="input-${safeId}" class="form-control" value="${status}" style="padding: 0.2rem 0.4rem; font-size: 12px; min-width: 0; height: 26px;">
+                            <button type="button" class="btn btn-success" onclick="app.salvarEdicaoStatus('${status}', '${safeId}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">OK</button>
+                            <button type="button" class="btn btn-secondary" onclick="app.cancelarAcaoStatus('${safeId}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">X</button>
+                        </div>
+                        
+                        <!-- MODO CONFIRMAÇÃO DE EXCLUSÃO -->
+                        <div id="delete-${safeId}" class="hidden flex justify-between items-center w-full">
+                            <span style="font-size: 11px; color: var(--danger); font-weight: 600;">Confirmar exclusão?</span>
+                            <div class="flex gap-1">
+                                <button type="button" class="btn btn-danger" onclick="app.confirmarExclusaoStatus('${status}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">Sim</button>
+                                <button type="button" class="btn btn-secondary" onclick="app.cancelarAcaoStatus('${safeId}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">Não</button>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(li);
+                });
+                
+                if (currentVal && state.statusList.includes(currentVal)) {
+                    select.value = currentVal;
+                }
+            }
+
+            function toggleStatusManager() { document.getElementById('status-manager').classList.toggle('hidden'); }
+
+            function adicionarStatus() {
+                const input = document.getElementById('new-status-name');
+                const val = input.value.trim();
+                
+                if(val && !state.statusList.includes(val)) {
+                    state.statusList.push(val);
+                    input.value = '';
+                    renderStatusUI();
+                    salvarConfig('statusList', state.statusList);
+                } else if (state.statusList.includes(val)) {
+                    input.style.borderColor = 'var(--danger)';
+                    setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
+                }
+            }
+
+            function iniciarEdicaoStatus(status) {
+                const safeId = status.replace(/[^a-zA-Z0-9]/g, '-');
+                document.getElementById(`view-${safeId}`).classList.add('hidden');
+                document.getElementById(`edit-${safeId}`).classList.remove('hidden');
+                document.getElementById(`delete-${safeId}`).classList.add('hidden');
+                document.getElementById(`input-${safeId}`).focus();
+            }
+
+            function iniciarExclusaoStatus(status) {
+                const safeId = status.replace(/[^a-zA-Z0-9]/g, '-');
+                document.getElementById(`view-${safeId}`).classList.add('hidden');
+                document.getElementById(`edit-${safeId}`).classList.add('hidden');
+                document.getElementById(`delete-${safeId}`).classList.remove('hidden');
+            }
+
+            function cancelarAcaoStatus(safeId) {
+                document.getElementById(`view-${safeId}`).classList.remove('hidden');
+                document.getElementById(`edit-${safeId}`).classList.add('hidden');
+                document.getElementById(`delete-${safeId}`).classList.add('hidden');
+            }
+
+            function salvarEdicaoStatus(oldStatus, safeId) {
+                const input = document.getElementById(`input-${safeId}`);
+                const val = input.value.trim();
+                
+                if (val === "" || val === oldStatus) { cancelarAcaoStatus(safeId); return; }
+                if (state.statusList.includes(val)) {
+                    input.style.borderColor = 'var(--danger)';
+                    setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
+                    return;
+                }
+
+                const index = state.statusList.indexOf(oldStatus);
+                if (index > -1) state.statusList[index] = val;
+                state.pedidos.forEach(p => { if (p.status === oldStatus) p.status = val; });
+
+                renderStatusUI();
+                renderPedidos();
+                salvarConfig('statusList', state.statusList);
+            }
+
+            function confirmarExclusaoStatus(status) {
+                if(state.statusList.length <= 1) {
+                    const safeId = status.replace(/[^a-zA-Z0-9]/g, '-');
+                    cancelarAcaoStatus(safeId);
+                    return;
+                }
+                state.statusList = state.statusList.filter(s => s !== status);
+                renderStatusUI();
+                renderPedidos();
+                salvarConfig('statusList', state.statusList);
+            }
+
+            // --- TIPOS DE ATENDIMENTO DINÂMICOS ---
+            function renderTipoAtendUI() {
+                const select = document.getElementById('atend-tipo');
+                const list = document.getElementById('tipo-atend-list');
+                const currentVal = select.value;
+                
+                select.innerHTML = '';
+                list.innerHTML = '';
+
+                state.tipoAtendList.forEach(tipo => {
+                    const opt = document.createElement('option');
+                    opt.value = tipo;
+                    opt.textContent = tipo;
+                    select.appendChild(opt);
+
+                    const li = document.createElement('li');
+                    li.className = 'flex flex-col w-full';
+                    li.style.padding = '0.4rem 0.6rem';
+                    li.style.backgroundColor = 'var(--hover-bg)';
+                    li.style.borderRadius = '4px';
+                    li.style.marginBottom = '0.2rem';
+                    
+                    const safeId = tipo.replace(/[^a-zA-Z0-9]/g, '-');
+                    
+                    li.innerHTML = `
+                        <!-- MODO VISUALIZAÇÃO -->
+                        <div id="view-tipo-${safeId}" class="flex justify-between items-center w-full">
+                            <span style="font-size: 13px; font-weight: 600;">${tipo}</span>
+                            <div class="flex gap-1 req-atend-edit">
+                                <button type="button" class="btn-icon" onclick="app.iniciarEdicaoTipoAtend('${tipo}')" style="color: var(--accent); padding: 0.2rem;" title="Editar">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                </button>
+                                <button type="button" class="btn-icon" onclick="app.iniciarExclusaoTipoAtend('${tipo}')" style="color: var(--danger); padding: 0.2rem;" title="Excluir">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- MODO EDIÇÃO -->
+                        <div id="edit-tipo-${safeId}" class="hidden flex gap-1 w-full items-center">
+                            <input type="text" id="input-tipo-${safeId}" class="form-control" value="${tipo}" style="padding: 0.2rem 0.4rem; font-size: 12px; min-width: 0; height: 26px;">
+                            <button type="button" class="btn btn-success" onclick="app.salvarEdicaoTipoAtend('${tipo}', '${safeId}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">OK</button>
+                            <button type="button" class="btn btn-secondary" onclick="app.cancelarAcaoTipoAtend('${safeId}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">X</button>
+                        </div>
+                        
+                        <!-- MODO CONFIRMAÇÃO DE EXCLUSÃO -->
+                        <div id="delete-tipo-${safeId}" class="hidden flex justify-between items-center w-full">
+                            <span style="font-size: 11px; color: var(--danger); font-weight: 600;">Confirmar exclusão?</span>
+                            <div class="flex gap-1">
+                                <button type="button" class="btn btn-danger" onclick="app.confirmarExclusaoTipoAtend('${tipo}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">Sim</button>
+                                <button type="button" class="btn btn-secondary" onclick="app.cancelarAcaoTipoAtend('${safeId}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">Não</button>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(li);
+                });
+                
+                if (currentVal && state.tipoAtendList.includes(currentVal)) {
+                    select.value = currentVal;
+                }
+            }
+
+            function toggleTipoAtendManager() { document.getElementById('tipo-atend-manager').classList.toggle('hidden'); }
+
+            function adicionarTipoAtend() {
+                const input = document.getElementById('new-tipo-atend-name');
+                const val = input.value.trim();
+                
+                if(val && !state.tipoAtendList.includes(val)) {
+                    state.tipoAtendList.push(val);
+                    input.value = '';
+                    renderTipoAtendUI();
+                    renderTabsAtend();
+                } else if (state.tipoAtendList.includes(val)) {
+                    input.style.borderColor = 'var(--danger)';
+                    setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
+                }
+            }
+
+            function iniciarEdicaoTipoAtend(tipo) {
+                const safeId = tipo.replace(/[^a-zA-Z0-9]/g, '-');
+                document.getElementById(`view-tipo-${safeId}`).classList.add('hidden');
+                document.getElementById(`edit-tipo-${safeId}`).classList.remove('hidden');
+                document.getElementById(`delete-tipo-${safeId}`).classList.add('hidden');
+                document.getElementById(`input-tipo-${safeId}`).focus();
+            }
+
+            function iniciarExclusaoTipoAtend(tipo) {
+                const safeId = tipo.replace(/[^a-zA-Z0-9]/g, '-');
+                document.getElementById(`view-tipo-${safeId}`).classList.add('hidden');
+                document.getElementById(`edit-tipo-${safeId}`).classList.add('hidden');
+                document.getElementById(`delete-tipo-${safeId}`).classList.remove('hidden');
+            }
+
+            function cancelarAcaoTipoAtend(safeId) {
+                document.getElementById(`view-tipo-${safeId}`).classList.remove('hidden');
+                document.getElementById(`edit-tipo-${safeId}`).classList.add('hidden');
+                document.getElementById(`delete-tipo-${safeId}`).classList.add('hidden');
+            }
+
+            function salvarEdicaoTipoAtend(oldTipo, safeId) {
+                const input = document.getElementById(`input-tipo-${safeId}`);
+                const val = input.value.trim();
+                
+                if (val === "" || val === oldTipo) {
+                    cancelarAcaoTipoAtend(safeId);
+                    return;
+                }
+                
+                if (state.tipoAtendList.includes(val)) {
+                    input.style.borderColor = 'var(--danger)';
+                    setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
+                    return;
+                }
+
+                const index = state.tipoAtendList.indexOf(oldTipo);
+                if (index > -1) state.tipoAtendList[index] = val;
+
+                state.atendimentos.forEach(a => { if (a.tipo === oldTipo) a.tipo = val; });
+
+                renderTipoAtendUI();
+                renderTabsAtend();
+                renderAtendimentos();
+            }
+
+            function confirmarExclusaoTipoAtend(tipo) {
+                if(state.tipoAtendList.length <= 1) {
+                    const safeId = tipo.replace(/[^a-zA-Z0-9]/g, '-');
+                    cancelarAcaoTipoAtend(safeId);
+                    return;
+                }
+                state.tipoAtendList = state.tipoAtendList.filter(t => t !== tipo);
+                renderTipoAtendUI();
+                renderTabsAtend();
+                renderAtendimentos();
+            }
+
+            // --- STATUS NF DINÂMICOS (ATENDIMENTO) ---
+            function renderStatusNFUI() {
+                const list = document.getElementById('status-nf-list');
+                
+                list.innerHTML = '';
+
+                state.statusNFList.forEach(status => {
+                    const li = document.createElement('li');
+                    li.className = 'flex flex-col w-full';
+                    li.style.padding = '0.4rem 0.6rem';
+                    li.style.backgroundColor = 'var(--hover-bg)';
+                    li.style.borderRadius = '4px';
+                    li.style.marginBottom = '0.2rem';
+                    
+                    const safeId = 'snf-' + status.replace(/[^a-zA-Z0-9]/g, '-');
+                    
+                    li.innerHTML = `
+                        <!-- MODO VISUALIZAÇÃO -->
+                        <div id="view-${safeId}" class="flex justify-between items-center w-full">
+                            <span style="font-size: 13px; font-weight: 600;">${status}</span>
+                            <div class="flex gap-1 req-atend-edit">
+                                <button type="button" class="btn-icon" onclick="app.iniciarEdicaoStatusNF('${status}')" style="color: var(--accent); padding: 0.2rem;" title="Editar">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                </button>
+                                <button type="button" class="btn-icon" onclick="app.iniciarExclusaoStatusNF('${status}')" style="color: var(--danger); padding: 0.2rem;" title="Excluir">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- MODO EDIÇÃO -->
+                        <div id="edit-${safeId}" class="hidden flex gap-1 w-full items-center">
+                            <input type="text" id="input-${safeId}" class="form-control" value="${status}" style="padding: 0.2rem 0.4rem; font-size: 12px; min-width: 0; height: 26px;">
+                            <button type="button" class="btn btn-success" onclick="app.salvarEdicaoStatusNF('${status}', '${safeId}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">OK</button>
+                            <button type="button" class="btn btn-secondary" onclick="app.cancelarAcaoStatusNF('${safeId}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">X</button>
+                        </div>
+                        
+                        <!-- MODO CONFIRMAÇÃO DE EXCLUSÃO -->
+                        <div id="delete-${safeId}" class="hidden flex justify-between items-center w-full">
+                            <span style="font-size: 11px; color: var(--danger); font-weight: 600;">Confirmar exclusão?</span>
+                            <div class="flex gap-1">
+                                <button type="button" class="btn btn-danger" onclick="app.confirmarExclusaoStatusNF('${status}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">Sim</button>
+                                <button type="button" class="btn btn-secondary" onclick="app.cancelarAcaoStatusNF('${safeId}')" style="padding: 0.2rem 0.5rem; font-size: 11px; height: 26px;">Não</button>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(li);
+                });
+                
+                atualizarSelectsStatusNFPedidos();
+            }
+
+            function atualizarSelectsStatusNFPedidos() {
+                const selects = document.querySelectorAll('#atend-pedidos-list .atend-pedido-status-nf');
+                selects.forEach(select => {
+                    const currentVal = select.value;
+                    select.innerHTML = state.statusNFList.map(s =>
+                        `<option value="${s.replace(/"/g, '&quot;')}">${s}</option>`
+                    ).join('');
+                    if (currentVal && state.statusNFList.includes(currentVal)) {
+                        select.value = currentVal;
+                    }
+                });
+            }
+
+            function toggleStatusNFManager() { document.getElementById('status-nf-manager').classList.toggle('hidden'); }
+
+            function adicionarStatusNF() {
+                const input = document.getElementById('new-status-nf-name');
+                const val = input.value.trim();
+                
+                if(val && !state.statusNFList.includes(val)) {
+                    state.statusNFList.push(val);
+                    input.value = '';
+                    renderStatusNFUI();
+                    renderAtendimentos();
+                    salvarConfig('statusNFList', state.statusNFList);
+                } else if (state.statusNFList.includes(val)) {
+                    input.style.borderColor = 'var(--danger)';
+                    setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
+                }
+            }
+
+            function iniciarEdicaoStatusNF(status) {
+                const safeId = 'snf-' + status.replace(/[^a-zA-Z0-9]/g, '-');
+                document.getElementById(`view-${safeId}`).classList.add('hidden');
+                document.getElementById(`edit-${safeId}`).classList.remove('hidden');
+                document.getElementById(`delete-${safeId}`).classList.add('hidden');
+                document.getElementById(`input-${safeId}`).focus();
+            }
+
+            function iniciarExclusaoStatusNF(status) {
+                const safeId = 'snf-' + status.replace(/[^a-zA-Z0-9]/g, '-');
+                document.getElementById(`view-${safeId}`).classList.add('hidden');
+                document.getElementById(`edit-${safeId}`).classList.add('hidden');
+                document.getElementById(`delete-${safeId}`).classList.remove('hidden');
+            }
+
+            function cancelarAcaoStatusNF(safeId) {
+                document.getElementById(`view-${safeId}`).classList.remove('hidden');
+                document.getElementById(`edit-${safeId}`).classList.add('hidden');
+                document.getElementById(`delete-${safeId}`).classList.add('hidden');
+            }
+
+            function salvarEdicaoStatusNF(oldStatus, safeId) {
+                const input = document.getElementById(`input-${safeId}`);
+                const val = input.value.trim();
+                
+                if (val === "" || val === oldStatus) { cancelarAcaoStatusNF(safeId); return; }
+                if (state.statusNFList.includes(val)) {
+                    input.style.borderColor = 'var(--danger)';
+                    setTimeout(() => input.style.borderColor = 'var(--border)', 1500);
+                    return;
+                }
+
+                const index = state.statusNFList.indexOf(oldStatus);
+                if (index > -1) state.statusNFList[index] = val;
+                state.atendimentos.forEach(a => { if (a.statusNF === oldStatus) a.statusNF = val; });
+
+                renderStatusNFUI();
+                renderAtendimentos();
+                salvarConfig('statusNFList', state.statusNFList);
+            }
+
+            function confirmarExclusaoStatusNF(status) {
+                if(state.statusNFList.length <= 1) {
+                    const safeId = 'snf-' + status.replace(/[^a-zA-Z0-9]/g, '-');
+                    cancelarAcaoStatusNF(safeId);
+                    return;
+                }
+                state.statusNFList = state.statusNFList.filter(s => s !== status);
+                renderStatusNFUI();
+                renderAtendimentos();
+                salvarConfig('statusNFList', state.statusNFList);
+            }
+
+            // --- CAMPOS PERSONALIZADOS (NOVAS COLUNAS PEDIDOS) ---
+            function toggleFieldManager() {
+                document.getElementById('field-manager-panel').classList.toggle('hidden');
+                renderFieldManagerList();
+            }
+
+            function toggleFieldOptions() {
+                const type = document.getElementById('new-field-type').value;
+                const optionsInput = document.getElementById('new-field-options');
+                if (type === 'select') optionsInput.classList.remove('hidden');
+                else optionsInput.classList.add('hidden');
+            }
+
+            function renderFieldManagerList() {
+                const list = document.getElementById('custom-fields-list');
+                list.innerHTML = '';
+                if(state.customFields.length === 0) {
+                    list.innerHTML = '<span style="font-size:11px; color:var(--text-sec);">Nenhum campo extra criado.</span>';
+                    return;
+                }
+                state.customFields.forEach((cf, index) => {
+                    list.innerHTML += `
+                        <li class="flex justify-between items-center" style="background: var(--hover-bg); padding: 0.4rem; border-radius: 4px;">
+                            <span style="font-size: 12px; font-weight: 600;">${cf.name} <small style="color:var(--text-sec)">(${cf.type})</small></span>
+                            <div class="flex gap-1">
+                                <button type="button" class="btn-icon" onclick="app.moverCampo(${index}, -1)" style="padding: 0.2rem;" title="Subir" ${index === 0 ? 'disabled style="opacity:0.3"' : ''}>⬆️</button>
+                                <button type="button" class="btn-icon" onclick="app.moverCampo(${index}, 1)" style="padding: 0.2rem;" title="Descer" ${index === state.customFields.length - 1 ? 'disabled style="opacity:0.3"' : ''}>⬇️</button>
+                                <button type="button" class="btn-icon" onclick="app.excluirCampo('${cf.id}')" style="color: var(--danger); padding: 0.2rem;" title="Excluir Coluna">🗑️</button>
+                            </div>
+                        </li>
+                    `;
+                });
+            }
+
+            function adicionarCampo() {
+                const nameInput = document.getElementById('new-field-name');
+                const typeSelect = document.getElementById('new-field-type');
+                const optionsInput = document.getElementById('new-field-options');
+                
+                const name = nameInput.value.trim();
+                const type = typeSelect.value;
+                let options = [];
+
+                if(!name) return;
+
+                if (type === 'select') {
+                    const opts = optionsInput.value.trim();
+                    if (!opts) { alert("Por favor, informe as opções separadas por vírgula."); return; }
+                    options = opts.split(',').map(o => o.trim()).filter(o => o);
+                }
+
+                const id = 'cf_' + Date.now();
+                state.customFields.push({ id, name, type, options });
+                state.colOrder.push(id); 
+                
+                nameInput.value = '';
+                optionsInput.value = '';
+                typeSelect.value = 'text';
+                toggleFieldOptions();
+
+                renderFieldManagerList();
+                
+                const currentCustomData = {};
+                state.customFields.forEach(cf => {
+                    const el = document.getElementById(`custom-field-${cf.id}`);
+                    if(el) currentCustomData[cf.id] = el.value;
+                });
+                
+                renderDynamicFields(currentCustomData);
+                renderPedidos();
+                salvarConfig('customFields', state.customFields);
+                salvarConfig('colOrder', state.colOrder);
+            }
+
+            function moverCampo(index, direcao) {
+                if (index + direcao < 0 || index + direcao >= state.customFields.length) return;
+                
+                const temp = state.customFields[index];
+                state.customFields[index] = state.customFields[index + direcao];
+                state.customFields[index + direcao] = temp;
+                
+                renderFieldManagerList();
+                
+                const currentCustomData = {};
+                state.customFields.forEach(cf => {
+                    const el = document.getElementById(`custom-field-${cf.id}`);
+                    if(el) currentCustomData[cf.id] = el.value;
+                });
+                
+                renderDynamicFields(currentCustomData);
+                renderPedidos();
+                salvarConfig('customFields', state.customFields);
+                salvarConfig('colOrder', state.colOrder);
+            }
+
+            function excluirCampo(id) {
+                confirmar("Excluir este campo fará com que a coluna seja removida da tabela principal. Deseja continuar?").then(async ok => {
+                if(ok) {
+                    state.customFields = state.customFields.filter(cf => cf.id !== id);
+                    state.colOrder = state.colOrder.filter(colId => colId !== id); 
+                    
+                    renderFieldManagerList();
+                    
+                    const currentCustomData = {};
+                    state.customFields.forEach(cf => {
+                        const el = document.getElementById(`custom-field-${cf.id}`);
+                        if(el) currentCustomData[cf.id] = el.value;
+                    });
+                    
+                    renderDynamicFields(currentCustomData);
+                    renderPedidos();
+                    salvarConfig('customFields', state.customFields);
+                    salvarConfig('colOrder', state.colOrder);
+                }
+                });
+            }
+
+            function renderDynamicFields(customData = {}) {
+                const container = document.getElementById('dynamic-fields-container');
+                container.innerHTML = '';
+                
+                if (state.customFields.length > 0) {
+                    container.innerHTML = `<h4 style="margin: 1.5rem 0 0.5rem 0; color: var(--accent);">Informações Adicionais</h4>`;
+                    
+                    let rowDiv = null;
+                    state.customFields.forEach((cf, index) => {
+                        if(index % 2 === 0) {
+                            rowDiv = document.createElement('div');
+                            rowDiv.className = 'flex gap-2';
+                            container.appendChild(rowDiv);
+                        }
+                        
+                        const val = customData[cf.id] || '';
+                        const inputGroup = document.createElement('div');
+                        inputGroup.className = 'input-group';
+                        
+                        if (cf.type === 'select') {
+                            let optionsHtml = `<option value="">Selecione...</option>`;
+                            cf.options.forEach(opt => {
+                                optionsHtml += `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt}</option>`;
+                            });
+                            inputGroup.innerHTML = `
+                                <label class="label">${cf.name}</label>
+                                <select id="custom-field-${cf.id}" class="form-control">${optionsHtml}</select>
+                            `;
+                        } else {
+                            inputGroup.innerHTML = `
+                                <label class="label">${cf.name}</label>
+                                <input type="${cf.type}" id="custom-field-${cf.id}" class="form-control" value="${val}">
+                            `;
+                        }
+                        
+                        rowDiv.appendChild(inputGroup);
+                    });
+                }
+            }
+            
+            // --- CAMPOS PERSONALIZADOS (ATENDIMENTO) ---
+            function toggleFieldAtendManager() {
+                document.getElementById('field-manager-atend-panel').classList.toggle('hidden');
+                renderFieldAtendManagerList();
+            }
+
+            function toggleFieldAtendOptions() {
+                const type = document.getElementById('new-field-atend-type').value;
+                const optionsInput = document.getElementById('new-field-atend-options');
+                if (type === 'select') optionsInput.classList.remove('hidden');
+                else optionsInput.classList.add('hidden');
+            }
+
+            function renderFieldAtendManagerList() {
+                const list = document.getElementById('custom-fields-atend-list');
+                list.innerHTML = '';
+                if(state.customFieldsAtend.length === 0) {
+                    list.innerHTML = '<span style="font-size:11px; color:var(--text-sec);">Nenhum campo extra criado.</span>';
+                    return;
+                }
+                state.customFieldsAtend.forEach((cf, index) => {
+                    list.innerHTML += `
+                        <li class="flex justify-between items-center" style="background: var(--hover-bg); padding: 0.4rem; border-radius: 4px;">
+                            <span style="font-size: 12px; font-weight: 600;">${cf.name} <small style="color:var(--text-sec)">(${cf.type})</small></span>
+                            <div class="flex gap-1">
+                                <button type="button" class="btn-icon" onclick="app.moverCampoAtend(${index}, -1)" style="padding: 0.2rem;" title="Subir" ${index === 0 ? 'disabled style="opacity:0.3"' : ''}>⬆️</button>
+                                <button type="button" class="btn-icon" onclick="app.moverCampoAtend(${index}, 1)" style="padding: 0.2rem;" title="Descer" ${index === state.customFieldsAtend.length - 1 ? 'disabled style="opacity:0.3"' : ''}>⬇️</button>
+                                <button type="button" class="btn-icon" onclick="app.excluirCampoAtend('${cf.id}')" style="color: var(--danger); padding: 0.2rem;" title="Excluir Coluna">🗑️</button>
+                            </div>
+                        </li>
+                    `;
+                });
+            }
+
+            function adicionarCampoAtend() {
+                const nameInput = document.getElementById('new-field-atend-name');
+                const typeSelect = document.getElementById('new-field-atend-type');
+                const optionsInput = document.getElementById('new-field-atend-options');
+                
+                const name = nameInput.value.trim();
+                const type = typeSelect.value;
+                let options = [];
+
+                if(!name) return;
+
+                if (type === 'select') {
+                    const opts = optionsInput.value.trim();
+                    if (!opts) { alert("Por favor, informe as opções separadas por vírgula."); return; }
+                    options = opts.split(',').map(o => o.trim()).filter(o => o);
+                }
+
+                const id = 'cfa_' + Date.now();
+                state.customFieldsAtend.push({ id, name, type, options });
+                
+                nameInput.value = '';
+                optionsInput.value = '';
+                typeSelect.value = 'text';
+                toggleFieldAtendOptions();
+
+                renderFieldAtendManagerList();
+                
+                const currentCustomData = {};
+                state.customFieldsAtend.forEach(cf => {
+                    const el = document.getElementById(`custom-field-atend-${cf.id}`);
+                    if(el) currentCustomData[cf.id] = el.value;
+                });
+                
+                renderDynamicFieldsAtend(currentCustomData);
+                renderAtendimentos();
+                salvarConfig('customFieldsAtend', state.customFieldsAtend);
+            }
+
+            function moverCampoAtend(index, direcao) {
+                if (index + direcao < 0 || index + direcao >= state.customFieldsAtend.length) return;
+                
+                const temp = state.customFieldsAtend[index];
+                state.customFieldsAtend[index] = state.customFieldsAtend[index + direcao];
+                state.customFieldsAtend[index + direcao] = temp;
+                
+                renderFieldAtendManagerList();
+                
+                const currentCustomData = {};
+                state.customFieldsAtend.forEach(cf => {
+                    const el = document.getElementById(`custom-field-atend-${cf.id}`);
+                    if(el) currentCustomData[cf.id] = el.value;
+                });
+                
+                renderDynamicFieldsAtend(currentCustomData);
+                renderAtendimentos();
+                salvarConfig('customFieldsAtend', state.customFieldsAtend);
+            }
+
+            function excluirCampoAtend(id) {
+                confirmar("Excluir este campo fará com que a informação seja removida dos cards. Deseja continuar?").then(async ok => {
+                if(ok) {
+                    state.customFieldsAtend = state.customFieldsAtend.filter(cf => cf.id !== id);
+                    
+                    renderFieldAtendManagerList();
+                    
+                    const currentCustomData = {};
+                    state.customFieldsAtend.forEach(cf => {
+                        const el = document.getElementById(`custom-field-atend-${cf.id}`);
+                        if(el) currentCustomData[cf.id] = el.value;
+                    });
+                    
+                    renderDynamicFieldsAtend(currentCustomData);
+                    renderAtendimentos();
+                    salvarConfig('customFieldsAtend', state.customFieldsAtend);
+                }
+                });
+            }
+
+            function renderDynamicFieldsAtend(customData = {}) {
+                const container = document.getElementById('dynamic-fields-atend-container');
+                container.innerHTML = '';
+                
+                if (state.customFieldsAtend.length > 0) {
+                    container.innerHTML = `<h4 style="margin: 1.5rem 0 0.5rem 0; color: var(--accent);">Informações Adicionais</h4>`;
+                    
+                    let rowDiv = null;
+                    state.customFieldsAtend.forEach((cf, index) => {
+                        if(index % 2 === 0) {
+                            rowDiv = document.createElement('div');
+                            rowDiv.className = 'flex gap-2';
+                            container.appendChild(rowDiv);
+                        }
+                        
+                        const val = customData[cf.id] || '';
+                        const inputGroup = document.createElement('div');
+                        inputGroup.className = 'input-group';
+                        
+                        if (cf.type === 'select') {
+                            let optionsHtml = `<option value="">Selecione...</option>`;
+                            cf.options.forEach(opt => {
+                                optionsHtml += `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt}</option>`;
+                            });
+                            inputGroup.innerHTML = `
+                                <label class="label">${cf.name}</label>
+                                <select id="custom-field-atend-${cf.id}" class="form-control">${optionsHtml}</select>
+                            `;
+                        } else {
+                            inputGroup.innerHTML = `
+                                <label class="label">${cf.name}</label>
+                                <input type="${cf.type}" id="custom-field-atend-${cf.id}" class="form-control" value="${val}">
+                            `;
+                        }
+                        
+                        rowDiv.appendChild(inputGroup);
+                    });
+                }
+            }
+
+            // --- LÓGICA DE MOTORISTAS ---
+            function renderMotoristas() {
+                const container = document.getElementById('motoristas-list');
+                if(!container) return;
+                
+                const term = (document.getElementById('search-motoristas')?.value || '').toLowerCase();
+                
+                let filtered = state.motoristas.filter(m => 
+                    m.cliente.toLowerCase().includes(term) || 
+                    m.nome.toLowerCase().includes(term) || 
+                    m.placa.toLowerCase().includes(term) ||
+                    m.documento.toLowerCase().includes(term)
+                );
+
+                // Agrupa por Razão Social (Cliente) ignorando maiúsculas/minúsculas e espaços extras
+                let groups = {};
+                filtered.forEach(m => {
+                    const key = m.cliente.trim().toUpperCase();
+                    if(!groups[key]) groups[key] = { label: m.cliente.trim(), items: [] };
+                    groups[key].items.push(m);
+                });
+
+                // Atualiza o Datalist com os clientes existentes para facilitar novos cadastros
+                const datalist = document.getElementById('clientes-list');
+                if (datalist) {
+                    datalist.innerHTML = Object.values(groups).map(g => `<option value="${g.label}">`).join('');
+                }
+
+                container.innerHTML = '';
+                if(Object.keys(groups).length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-sec)">Nenhum motorista encontrado com esses termos.</p>';
+                    return;
+                }
+
+                // Cria o layout Sanfona para cada grupo
+                for(let key in groups) {
+                    const group = groups[key];
+                    const details = document.createElement('details');
+                    details.className = 'card';
+                    details.style.padding = '0.5rem 1rem';
+                    // Deixa aberto por padrão se o usuário estiver pesquisando algo
+                    if(term) details.open = true;
+
+                    const summary = document.createElement('summary');
+                    summary.style.fontWeight = '700';
+                    summary.style.cursor = 'pointer';
+                    summary.style.padding = '0.5rem 0';
+                    summary.style.outline = 'none';
+                    summary.style.color = 'var(--accent)';
+                    summary.innerHTML = `🏢 ${group.label} <span class="badge" style="background:var(--hover-bg); color:var(--text-sec); margin-left:0.5rem;">${group.items.length} motorista(s)</span>`;
+                    
+                    details.appendChild(summary);
+
+                    const listDiv = document.createElement('div');
+                    listDiv.style.marginTop = '0.5rem';
+                    listDiv.style.display = 'grid';
+                    listDiv.style.gap = '0.5rem';
+                    listDiv.style.gridTemplateColumns = 'repeat(auto-fill, minmax(250px, 1fr))';
+
+                    group.items.forEach(m => {
+                        const mCard = document.createElement('div');
+                        mCard.style.border = '1px solid var(--border)';
+                        mCard.style.borderRadius = 'var(--radius-btn)';
+                        mCard.style.padding = '0.8rem';
+                        mCard.style.backgroundColor = 'var(--bg-main)';
+                        mCard.innerHTML = `
+                            <div class="flex justify-between items-start mb-1">
+                                <strong style="font-size:14px;">${m.nome}</strong>
+                                <div class="flex gap-1 req-atend-edit">
+                                    <button type="button" class="btn-icon" onclick="app.editarMotorista('${m.id}')" style="padding:0.1rem" title="Editar">✏️</button>
+                                    <button type="button" class="btn-icon" onclick="app.excluirMotorista('${m.id}')" style="padding:0.1rem; color:var(--danger)" title="Excluir">🗑️</button>
+                                </div>
+                            </div>
+                            <div style="font-size:12px; color:var(--text-sec)">Placa: <strong style="color:var(--text-main)">${m.placa}</strong></div>
+                            <div style="font-size:12px; color:var(--text-sec)">Doc: <strong style="color:var(--text-main)">${m.documento}</strong></div>
+                        `;
+                        listDiv.appendChild(mCard);
+                    });
+                    
+                    details.appendChild(listDiv);
+                    container.appendChild(details);
+                }
+            }
+
+            async function salvarMotorista() {
+                const id = document.getElementById('mot-id').value;
+                const nome = document.getElementById('mot-nome').value.trim();
+                const cliente = document.getElementById('mot-cliente').value.trim();
+                if(!nome || !cliente) { alert('Preencha ao menos Nome e Cliente.'); return; }
+
+                const payload = {
+                    cliente: document.getElementById('mot-cliente').value.trim(),
+                    nome: document.getElementById('mot-nome').value.trim(),
+                    placa: document.getElementById('mot-placa').value.trim(),
+                    documento: document.getElementById('mot-doc').value.trim(),
+                    admin_id: state.adminId
+                };
+
+                if(id) {
+                    const { error } = await db.from('motoristas').update(payload).eq('id', id);
+                    if(error) { alert('Erro ao atualizar motorista: ' + error.message); return; }
+                } else {
+                    const { error } = await db.from('motoristas').insert(payload);
+                    if(error) { alert('Erro ao salvar motorista: ' + error.message); return; }
+                }
+
+                await carregarMotoristas();
+                closeAllDrawers();
+            }
+
+            function editarMotorista(id) {
+                const mot = state.motoristas.find(m => m.id === id);
+                if(mot) openDrawer('drawer-motorista', mot);
+            }
+
+            async function excluirMotorista(id) {
+                if(await confirmar("Deseja realmente excluir este motorista?")) {
+                    const { error } = await db.from('motoristas').delete().eq('id', id);
+                    if(error) { alert('Erro ao excluir: ' + error.message); return; }
+                    await carregarMotoristas();
+                }
+            }
+
+            // --- FUNÇÕES DE ASSISTÊNCIA DA TABELA ---
+            function getColLabel(colId) {
+                const map = {
+                    'data': 'Data', 'num': 'Nº Pedido', 'status': 'Status',
+                    'vend': 'Vendedor', 'cli': 'Cliente', 'sep': 'Separação',
+                    'conf': 'Conferência', 'exp': 'Expedição'
+                };
+                if (map[colId]) return map[colId];
+                const cf = state.customFields.find(c => c.id === colId);
+                return cf ? cf.name : colId;
+            }
+
+            function getColContent(p, colId) {
+                if (colId === 'data') return formatDate(p.data);
+                if (colId === 'num') return `<strong>${p.num}</strong>`;
+                if (colId === 'status') {
+                    const sColor = getStatusColor(p.status);
+                    return `<span class="badge" style="background:${sColor.bg}; color:${sColor.color}">${p.status}</span>`;
+                }
+                if (colId === 'vend') return p.vend;
+                if (colId === 'cli') return p.cli;
+                if (colId === 'sep') return p.sep ? `${p.sep}<br><small style="color:var(--text-sec)">${formatDate(p.dtsep)}</small>` : '-';
+                if (colId === 'conf') return p.conf ? `${p.conf}<br><small style="color:var(--text-sec)">${formatDate(p.dtconf)}</small>` : '-';
+                if (colId === 'exp') return p.exp ? `${p.exp}<br><small style="color:var(--text-sec)">${formatDate(p.dtexp)}</small>` : '-';
+
+                const cf = state.customFields.find(c => c.id === colId);
+                if (cf) {
+                    const rawVal = (p.customData && p.customData[cf.id]) ? p.customData[cf.id] : '-';
+                    if(cf.type === 'date' && rawVal && rawVal !== '-') return formatDate(rawVal);
+                    return rawVal;
+                }
+                return '-';
+            }
+
+            // --- PEDIDOS ---
+            function renderPedidos() {
+                const thead = document.getElementById('thead-pedidos');
+                let theadHtml = '';
+                
+                state.colOrder.forEach(colId => {
+                    theadHtml += `<th draggable="true"
+                        ondragstart="app.handleDragStart(event, '${colId}')"
+                        ondragover="app.handleDragOver(event)"
+                        ondrop="app.handleDrop(event, '${colId}')"
+                        ondragend="this.style.opacity='1'"
+                        style="cursor: grab;" title="Arraste para reordenar">
+                        ${getColLabel(colId)} <span style="font-size: 10px; opacity: 0.5;">⇋</span>
+                    </th>`;
+                });
+                theadHtml += `<th class="req-pedidos-edit">Ações</th>`;
+                thead.innerHTML = theadHtml;
+
+                const tbody = document.querySelector('#tabela-pedidos tbody');
+                tbody.innerHTML = '';
+                state.pedidos.forEach(p => {
+                    
+                    let rowHtml = '';
+                    state.colOrder.forEach(colId => {
+                        rowHtml += `<td>${getColContent(p, colId)}</td>`;
+                    });
+
+                    rowHtml += `
+                        <td class="req-pedidos-edit">
+                            <button class="btn-icon" onclick='app.editarPedido("${p.id}")' title="Editar">✏️</button>
+                            <button class="btn-icon" onclick='app.excluirPedido("${p.id}")' title="Excluir">🗑️</button>
+                        </td>
+                    `;
+                    
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = rowHtml;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            async function salvarPedido() {
+                const id = document.getElementById('ped-id').value;
+                const num = document.getElementById('ped-num').value.trim();
+                const cli = document.getElementById('ped-cli').value.trim();
+                if(!num || !cli) { alert('Preencha ao menos Nº do Pedido e Cliente.'); return; }
+
+                const customDataObj = {};
+                state.customFields.forEach(cf => {
+                    const input = document.getElementById(`custom-field-${cf.id}`);
+                    if(input) customDataObj[cf.id] = input.value;
+                });
+
+                const payload = {
+                    data: document.getElementById('ped-data').value,
+                    num: document.getElementById('ped-num').value,
+                    status: document.getElementById('ped-status').value,
+                    vend: document.getElementById('ped-vend').value,
+                    cli: document.getElementById('ped-cli').value,
+                    sep: document.getElementById('ped-sep').value,
+                    dtsep: document.getElementById('ped-dtsep').value || null,
+                    conf: document.getElementById('ped-conf').value,
+                    dtconf: document.getElementById('ped-dtconf').value || null,
+                    exp: document.getElementById('ped-exp').value,
+                    dtexp: document.getElementById('ped-dtexp').value || null,
+                    custom_data: customDataObj,
+                    admin_id: state.adminId
+                };
+
+                if(id) {
+                    const { error } = await db.from('pedidos').update(payload).eq('id', id);
+                    if(error) { alert('Erro ao atualizar pedido: ' + error.message); return; }
+                } else {
+                    const { error } = await db.from('pedidos').insert(payload);
+                    if(error) { alert('Erro ao salvar pedido: ' + error.message); return; }
+                }
+                
+                await carregarPedidos();
+                closeAllDrawers();
+            }
+
+            function editarPedido(id) {
+                const pedido = state.pedidos.find(p => p.id === id);
+                if(pedido) openDrawer('drawer-pedido', pedido);
+            }
+
+            async function excluirPedido(id) {
+                if(await confirmar("Deseja realmente excluir este pedido?")) {
+                    const { error } = await db.from('pedidos').delete().eq('id', id);
+                    if(error) { alert('Erro ao excluir: ' + error.message); return; }
+                    await carregarPedidos();
+                }
+            }
+
+            function filterTable(tableId, query) {
+                query = query.toLowerCase();
+                const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(query) ? '' : 'none';
+                });
+            }
+
+            // --- ATENDIMENTO ---
+            function renderTabsAtend() {
+                const tabsContainer = document.querySelector('.tabs');
+                let currentActiveTabId = null;
+                const activeTab = tabsContainer.querySelector('.tab.active');
+                if(activeTab) {
+                     currentActiveTabId = activeTab.getAttribute('data-tab-id');
+                }
+
+                tabsContainer.innerHTML = '';
+                
+                const tabsData = {
+                    'dashboard': { label: '📊 Dashboard', isStatic: true },
+                    'motoristas': { label: '🪪 Motoristas', isStatic: true },
+                    'financeiro': { label: '💰 Financeiro', isStatic: true },
+                    'finalizados': { label: '✔️ Histórico', isStatic: true }
+                };
+                
+                state.tipoAtendList.forEach(tipo => {
+                    const safeId = tipo.replace(/[^a-zA-Z0-9]/g, '-');
+                    tabsData[safeId] = { label: tipo, isStatic: false };
+                });
+
+                const validKeys = Object.keys(tabsData);
+                state.tabsOrder = state.tabsOrder.filter(k => validKeys.includes(k)); 
+                validKeys.forEach(k => { if(!state.tabsOrder.includes(k)) state.tabsOrder.push(k); }); 
+
+                state.tabsOrder.forEach((tabId, index) => {
+                    const tabInfo = tabsData[tabId];
+                    if(!tabInfo) return;
+
+                    const tab = document.createElement('div');
+                    tab.className = `tab`;
+                    tab.setAttribute('data-tab-id', tabId); 
+                    tab.textContent = tabInfo.label;
+                    tab.draggable = true;
+                    tab.ondragstart = (e) => app.handleTabDragStart(e, tabId);
+                    tab.ondragover = (e) => app.handleTabDragOver(e);
+                    tab.ondrop = (e) => app.handleTabDrop(e, tabId);
+                    tab.ondragend = function() { this.style.opacity = '1'; };
+                    tab.title = "Arraste para reordenar";
+                    
+                    if (currentActiveTabId === tabId || (!currentActiveTabId && index === 0)) {
+                        tab.classList.add('active');
+                        document.querySelectorAll('#atendimento-module .tab-content').forEach(tc => tc.classList.remove('active'));
+                        const content = document.getElementById(`tab-${tabId}`);
+                        if(content) content.classList.add('active');
+                    }
+
+                    tab.onclick = function() { app.switchTab(`tab-${tabId}`, this); };
+                    tabsContainer.appendChild(tab);
+                    
+                    if(!document.getElementById(`tab-${tabId}`)) {
+                        const contentDiv = document.createElement('div');
+                        contentDiv.id = `tab-${tabId}`;
+                        contentDiv.className = 'tab-content';
+                        
+                        if(tabId === 'dashboard') {
+                             contentDiv.innerHTML = `<div id="dashboard-container" style="padding-top: 0.5rem;"></div>`;
+                        } else if(tabId === 'motoristas') {
+                             contentDiv.innerHTML = `
+                                <div class="flex justify-between items-center mb-1 flex-wrap gap-1">
+                                    <div class="search-box">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                        <input type="text" id="search-motoristas" class="form-control" placeholder="Buscar placa, doc, nome, cliente..." oninput="app.renderMotoristas()">
+                                    </div>
+                                    <button class="btn btn-primary req-atend-edit" onclick="app.openDrawer('drawer-motorista')">+ Novo Motorista</button>
+                                </div>
+                                <div id="motoristas-list" style="margin-top: 1rem; display:flex; flex-direction:column; gap: 0.8rem;"></div>
+                             `;
+                        } else if(tabId === 'financeiro') {
+                             contentDiv.innerHTML = `<div class="queue-grid" id="queue-financeiro"></div>`;
+                        } else if (tabId === 'finalizados') {
+                             contentDiv.innerHTML = `<div class="queue-grid" id="queue-finalizados"></div>`;
+                        } else {
+                             contentDiv.innerHTML = `<div class="queue-grid" id="queue-${tabId}"></div>`;
+                        }
+                        
+                        document.getElementById('atendimento-module').appendChild(contentDiv);
+                    }
+                });
+            }
+
+            function getPedidosListaAtend(atendimento) {
+                if (atendimento.customData && atendimento.customData._pedidosLista && atendimento.customData._pedidosLista.length > 0) {
+                    return atendimento.customData._pedidosLista;
+                }
+                // Fallback para atendimentos antigos sem a lista estruturada
+                const numeros = (atendimento.num || '').split(',').map(n => n.trim()).filter(n => n !== '');
+                return numeros.map(n => ({ num: n, statusNF: atendimento.statusNF || '' }));
+            }
+
+            function renderAtendimentos() {
+                state.tipoAtendList.forEach(tipo => {
+                    const safeId = tipo.replace(/[^a-zA-Z0-9]/g, '-');
+                    const queue = document.getElementById(`queue-${safeId}`);
+                    if(queue) queue.innerHTML = '';
+                });
+                
+                const queueFin = document.getElementById('queue-finalizados');
+                if(queueFin) queueFin.innerHTML = '';
+
+                const queueFinanceiro = document.getElementById('queue-financeiro');
+                if(queueFinanceiro) queueFinanceiro.innerHTML = '';
+
+                let counts = {};
+                state.tipoAtendList.forEach(t => counts[t] = 0);
+                let countFin = 0;
+                let countFinanceiroItens = 0;
+
+                const atendimentosOrdenados = [...state.atendimentos].reverse();
+
+                atendimentosOrdenados.forEach(a => {
+                    const safeId = a.tipo.replace(/[^a-zA-Z0-9]/g, '-');
+                    const targetQueue = a.status === 'Finalizado' ? queueFin : document.getElementById(`queue-${safeId}`);
+                    
+                    if (targetQueue) {
+                        const card = document.createElement('div');
+                        card.className = 'card queue-card flex-col justify-between gap-2';
+                        
+                        let customFieldsHtml = '';
+                        if (state.customFieldsAtend.length > 0 && a.customData) {
+                            customFieldsHtml = '<div style="margin: 0.5rem 0; padding-top: 0.5rem; border-top: 1px dashed var(--border);">';
+                            state.customFieldsAtend.forEach(cf => {
+                                const val = a.customData[cf.id];
+                                if (val) {
+                                    customFieldsHtml += `<div style="font-size: 12px; display: flex; justify-content: space-between; margin-bottom: 0.2rem;">
+                                        <span style="color: var(--text-sec);">${cf.name}:</span>
+                                        <strong>${cf.type === 'date' ? formatDate(val) : val}</strong>
+                                    </div>`;
+                                }
+                            });
+                            customFieldsHtml += '</div>';
+                        }
+
+                        // Lista de pedidos com status NF individual
+                        const pedidosLista = getPedidosListaAtend(a);
+                        const badgeNF = (status) => {
+                            if (status === 'Aguardando') return `<span class="badge" style="background: var(--danger-bg); color: var(--danger); font-size:11px;">⚠️ ${status}</span>`;
+                            if (status === 'Emitida') return `<span class="badge" style="background: var(--success-bg); color: var(--success); font-size:11px;">🧾 ${status}</span>`;
+                            if (status === 'Dispensada') return `<span class="badge" style="background: var(--bg-main); color: var(--text-sec); font-size:11px;">${status}</span>`;
+                            return `<span class="badge" style="background: var(--info-bg); color: var(--info); font-size:11px;">🔹 ${status}</span>`;
+                        };
+                        let pedidosHtml = `<div style="margin-top:0.5rem; display:flex; flex-direction:column; gap:0.3rem;">`;
+                        pedidosLista.forEach(p => {
+                            pedidosHtml += `<div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
+                                <strong>${p.num}</strong> ${badgeNF(p.statusNF)}
+                            </div>`;
+                        });
+                        pedidosHtml += `</div>`;
+
+                        const algumAguardando = pedidosLista.some(p => p.statusNF === 'Aguardando');
+
+
+                        if (a.status === 'Finalizado') {
+                            card.style.borderLeftColor = 'var(--success)';
+                            card.style.opacity = '0.8';
+                            
+                            let durationHtml = '';
+                            if (a.data === a.dataFinalizacao && a.hora && a.horaFinalizacao) {
+                                const start = new Date(`2000-01-01T${a.hora}:00`);
+                                const end = new Date(`2000-01-01T${a.horaFinalizacao}:00`);
+                                if(end >= start) {
+                                    const diffMins = Math.round((end - start) / 60000);
+                                    durationHtml = `<div style="margin-top: 0.5rem;"><span class="badge" style="background: var(--warning-bg); color: var(--warning); padding: 0.3rem 0.6rem;">⏳ Tempo total: ${diffMins} minutos</span></div>`;
+                                }
+                            }
+
+                            card.innerHTML = `
+                                <div>
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${a.tipo}</span>
+                                    </div>
+                                    <h3 style="font-size: 16px; text-decoration: line-through; color: var(--text-sec);">${a.nome}</h3>
+                                    ${pedidosHtml}
+                                    ${customFieldsHtml}
+                                    <div style="font-size: 11px; margin-top: 0.8rem; padding-top: 0.5rem; border-top: 1px solid var(--border);">
+                                        <div style="color: var(--text-sec); margin-bottom: 0.2rem;">Entrada: ${a.data} às ${a.hora}</div>
+                                        <div style="color: var(--success); font-weight: 600;">Saída: ${a.dataFinalizacao} às ${a.horaFinalizacao}</div>
+                                    </div>
+                                    ${durationHtml}
+                                </div>
+                            `;
+                            countFin++;
+                        } else {
+                            let btnActionHtml = `<button class="btn btn-success req-atend-edit" style="width:100%; justify-content:center" onclick="app.finalizarAtendimento('${a.id}', this)">✔ Finalizar Despacho</button>`;
+                            
+                            if (algumAguardando) {
+                                card.style.borderLeftColor = 'var(--danger)';
+                                card.style.backgroundColor = 'var(--danger-bg)';
+                            } else {
+                                card.style.borderLeftColor = 'var(--success)';
+                                card.style.backgroundColor = 'var(--success-bg)';
+                            }
+
+                            card.innerHTML = `
+                                <div>
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${a.data} - ${a.hora}</span>
+                                        <button class="btn-icon req-atend-edit" onclick="app.editarAtendimento('${a.id}')" title="Editar Registro" style="padding: 0.1rem; margin-left: 0.5rem;">✏️</button>
+                                    </div>
+                                    <h3 style="font-size: 16px;">${a.nome}</h3>
+                                    ${pedidosHtml}
+                                    ${customFieldsHtml}
+                                </div>
+                                ${btnActionHtml}
+                            `;
+                            counts[a.tipo]++;
+                        }
+                        
+                        targetQueue.appendChild(card); 
+                        
+                        if (a.status !== 'Finalizado' && algumAguardando && queueFinanceiro) {
+                            const pedidosPendentes = pedidosLista.filter(p => p.statusNF === 'Aguardando');
+                            let pedidosPendentesHtml = pedidosPendentes.map(p => `<div style="font-size:13px; margin-top:0.2rem;"><strong>${p.num}</strong></div>`).join('');
+                            const cardFin = document.createElement('div');
+                            cardFin.className = 'card queue-card flex-col justify-between gap-2';
+                            cardFin.style.borderLeftColor = 'var(--danger)';
+                            cardFin.innerHTML = `
+                                <div>
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${a.data} - ${a.hora}</span>
+                                    </div>
+                                    <h3 style="font-size: 16px;">${a.nome}</h3>
+                                    <div style="font-size: 12px; color: var(--text-sec); margin-top: 0.3rem;">Pedido(s) aguardando NF:</div>
+                                    ${pedidosPendentesHtml}
+                                    <div style="font-size: 12px; color: var(--text-sec); margin-top: 0.5rem;">Expedição: <strong>${a.tipo}</strong></div>
+                                    ${customFieldsHtml}
+                                </div>
+                                <button class="btn btn-primary req-atend-edit" style="width:100%; justify-content:center" onclick="app.liberarNF('${a.id}', this)">
+                                    🧾 Liberar Nota(s) Fiscal(is)
+                                </button>
+                            `;
+                            queueFinanceiro.appendChild(cardFin);
+                            countFinanceiroItens++;
+                        }
+                    }
+                });
+
+                state.tipoAtendList.forEach(tipo => {
+                    const safeId = tipo.replace(/[^a-zA-Z0-9]/g, '-');
+                    const queue = document.getElementById(`queue-${safeId}`);
+                    if (queue && counts[tipo] === 0) {
+                        queue.innerHTML = '<p style="color:var(--text-sec);">Nenhum cliente aguardando na expedição.</p>';
+                    }
+                });
+                
+                if (queueFin && countFin === 0) {
+                    queueFin.innerHTML = '<p style="color:var(--text-sec);">Nenhum histórico de atendimento.</p>';
+                }
+                
+                if (queueFinanceiro && countFinanceiroItens === 0) {
+                    queueFinanceiro.innerHTML = '<p style="color:var(--text-sec);">Nenhum pedido aguardando Nota Fiscal no momento. Tudo liberado!</p>';
+                }
+
+                renderDashboardAtend();
+                renderMotoristas();
+            }
+
+            function renderDashboardAtend() {
+                const container = document.getElementById('dashboard-container');
+                if(!container) return;
+
+                const agora = new Date();
+                const hojeStr = `${agora.getDate().toString().padStart(2,'0')}/${(agora.getMonth()+1).toString().padStart(2,'0')}/${agora.getFullYear()}`;
+
+                const finalizados = state.atendimentos.filter(a => a.status === 'Finalizado');
+                const finalizadosHoje = finalizados.filter(a => a.dataFinalizacao === hojeStr);
+
+                let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <div class="card flex-col items-center justify-center" style="text-align:center; padding: 1.5rem;">
+                        <h3 style="font-size: 32px; color: var(--accent); margin-bottom: 0.2rem;">${finalizadosHoje.length}</h3>
+                        <span style="font-size: 11px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em;">Finalizados Hoje</span>
+                    </div>
+                    <div class="card flex-col items-center justify-center" style="text-align:center; padding: 1.5rem;">
+                        <h3 style="font-size: 32px; color: var(--success); margin-bottom: 0.2rem;">${finalizados.length}</h3>
+                        <span style="font-size: 11px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em;">Total Histórico</span>
+                    </div>
+                </div>`;
+
+                html += `<div class="flex justify-between items-center mb-2">
+                            <h3 style="font-size: 16px; margin: 0;">🔮 Previsão de Coletas e Padrões</h3>
+                            <span style="font-size: 11px; color: var(--text-sec);">Baseado no histórico do sistema</span>
+                         </div>`;
+                html += `<div class="repo-grid">`;
+
+                state.tipoAtendList.forEach(tipo => {
+                    const atendimentosDoTipo = finalizados.filter(a => a.tipo === tipo);
+
+                    const previsoes = {};
+                    atendimentosDoTipo.forEach(a => {
+                        if(!previsoes[a.nome]) previsoes[a.nome] = { tempos: [], durations: [] };
+                        
+                        if(a.hora) {
+                            const [h, m] = a.hora.split(':').map(Number);
+                            if(!isNaN(h) && !isNaN(m)) previsoes[a.nome].tempos.push(h * 60 + m);
+                        }
+
+                        if (a.dataFinalizacao && a.horaFinalizacao && a.hora) {
+                            const start = new Date(`2000-01-01T${a.hora}:00`);
+                            const end = new Date(`2000-01-01T${a.horaFinalizacao}:00`);
+                            if (end >= start) {
+                                previsoes[a.nome].durations.push((end - start) / 60000);
+                            }
+                        }
+                    });
+
+                    let previsoesHtml = '';
+                    let countPrev = 0;
+                    for(let nome in previsoes) {
+                        const p = previsoes[nome];
+                        if(p.tempos.length > 0) {
+                            countPrev++;
+                            
+                            const mediaTempo = p.tempos.reduce((acc, curr) => acc + curr, 0) / p.tempos.length;
+                            const h = Math.floor(mediaTempo / 60).toString().padStart(2, '0');
+                            const m = Math.floor(mediaTempo % 60).toString().padStart(2, '0');
+
+                            const avgDur = p.durations.length > 0 ? Math.round(p.durations.reduce((acc, curr) => acc + curr, 0) / p.durations.length) : 0;
+
+                            previsoesHtml += `
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 0; border-bottom: 1px dashed var(--border);">
+                                    <div>
+                                        <strong style="display: block; font-size: 13px;">${nome}</strong>
+                                        <span style="font-size: 11px; color: var(--text-sec);">Espera média: <strong>${avgDur} min</strong></span>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span class="badge" style="background: var(--info-bg); color: var(--info); font-size: 12px;">⏰ Prev: ${h}:${m}</span><br>
+                                        <span style="font-size: 10px; color: var(--text-sec);">${p.tempos.length} registro(s)</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    if(countPrev === 0) {
+                        previsoesHtml = `<p style="color: var(--text-sec); font-size: 12px; margin-top: 1rem; text-align: center;">Sem dados suficientes para gerar previsões.</p>`;
+                    }
+
+                    html += `
+                        <div class="card" style="padding: 1rem;">
+                            <h3 style="font-size: 14px; margin-bottom: 0.5rem; color: var(--accent); border-bottom: 2px solid var(--border); padding-bottom: 0.5rem;">${tipo}</h3>
+                            <div style="max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
+                                ${previsoesHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                container.innerHTML = html;
+            }
+
+            function renderPedidosAtendList(pedidosArray) {
+                const container = document.getElementById('atend-pedidos-list');
+                container.innerHTML = '';
+                
+                // pedidosArray: [{num: '1001', statusNF: 'Aguardando'}, ...]
+                const pedidos = (pedidosArray && pedidosArray.length > 0) ? pedidosArray : [{ num: '', statusNF: state.statusNFList[0] || '' }];
+
+                pedidos.forEach((item) => {
+                    renderUmCampoPedidoAtend(item.num || '', item.statusNF || state.statusNFList[0] || '');
+                });
+                atualizarVisibilidadeRemoverPedidoAtend();
+            }
+
+            function renderUmCampoPedidoAtend(valorNum, valorStatus) {
+                const container = document.getElementById('atend-pedidos-list');
+                const row = document.createElement('div');
+                row.className = 'flex gap-1';
+                row.style.alignItems = 'center';
+
+                let optionsHtml = state.statusNFList.map(s =>
+                    `<option value="${s.replace(/"/g, '&quot;')}" ${s === valorStatus ? 'selected' : ''}>${s}</option>`
+                ).join('');
+
+                row.innerHTML = `
+                    <input type="text" class="form-control atend-pedido-input" value="${(valorNum||'').replace(/"/g, '&quot;')}" placeholder="Nº do pedido" style="flex:1.3;">
+                    <select class="form-control atend-pedido-status-nf" style="flex:1;">${optionsHtml}</select>
+                    <button type="button" class="btn-icon" onclick="app.removerCampoPedidoAtend(this)" title="Remover" style="padding:0.3rem;">🗑️</button>
+                `;
+                container.appendChild(row);
+            }
+
+            function adicionarCampoPedidoAtend() {
+                renderUmCampoPedidoAtend('', state.statusNFList[0] || '');
+                atualizarVisibilidadeRemoverPedidoAtend();
+                const container = document.getElementById('atend-pedidos-list');
+                const lastInput = container.lastElementChild.querySelector('input');
+                if (lastInput) lastInput.focus();
+            }
+
+            function removerCampoPedidoAtend(btnElement) {
+                const container = document.getElementById('atend-pedidos-list');
+                if (container.children.length <= 1) return;
+                btnElement.closest('.flex').remove();
+                atualizarVisibilidadeRemoverPedidoAtend();
+            }
+
+            function atualizarVisibilidadeRemoverPedidoAtend() {
+                const container = document.getElementById('atend-pedidos-list');
+                const rows = container.querySelectorAll(':scope > .flex');
+                rows.forEach(row => {
+                    const btn = row.querySelector('.btn-icon');
+                    btn.style.visibility = rows.length <= 1 ? 'hidden' : 'visible';
+                });
+            }
+
+            function getPedidosAtendForm() {
+                const rows = document.querySelectorAll('#atend-pedidos-list > .flex');
+                return Array.from(rows)
+                    .map(row => ({
+                        num: row.querySelector('.atend-pedido-input').value.trim(),
+                        statusNF: row.querySelector('.atend-pedido-status-nf').value
+                    }))
+                    .filter(p => p.num !== '');
+            }
+
+            async function salvarAtendimento() {
+                const id = document.getElementById('atend-id').value;
+                const nome = document.getElementById('atend-nome').value.trim();
+                const pedidosLista = getPedidosAtendForm();
+                const num = pedidosLista.map(p => p.num).join(', ');
+                if(!nome || pedidosLista.length === 0) { alert('Preencha ao menos um Nº de Pedido e o Nome.'); return; }
+
+                const customDataObj = {};
+                state.customFieldsAtend.forEach(cf => {
+                    const input = document.getElementById(`custom-field-atend-${cf.id}`);
+                    if(input) customDataObj[cf.id] = input.value;
+                });
+                customDataObj._pedidosLista = pedidosLista;
+
+                // Status NF geral = "Aguardando" se algum pedido estiver aguardando, senão usa o status predominante
+                const statusNFGeral = pedidosLista.some(p => p.statusNF === 'Aguardando')
+                    ? 'Aguardando'
+                    : (pedidosLista[0]?.statusNF || state.statusNFList[0] || '');
+
+                const agora = new Date();
+                const dia = agora.getDate().toString().padStart(2,'0');
+                const mes = (agora.getMonth()+1).toString().padStart(2,'0');
+                const ano = agora.getFullYear();
+                const horaAtual = `${agora.getHours().toString().padStart(2,'0')}:${agora.getMinutes().toString().padStart(2,'0')}`;
+
+                const { data: authData } = await db.auth.getUser();
+                const adminId = authData?.user?.id || null;
+
+                if(id) {
+                    const original = state.atendimentos.find(a => a.id == id);
+                    const payload = {
+                        num: num,
+                        nome: document.getElementById('atend-nome').value,
+                        tipo: document.getElementById('atend-tipo').value,
+                        status_nf: statusNFGeral,
+                        custom_data: customDataObj
+                    };
+                    const { error } = await db.from('atendimentos').update(payload).eq('id', id);
+                    if(error) { alert('Erro ao atualizar: ' + error.message); return; }
+                } else {
+                    const payload = {
+                        num: num,
+                        nome: document.getElementById('atend-nome').value,
+                        tipo: document.getElementById('atend-tipo').value,
+                        status_nf: statusNFGeral,
+                        data: `${dia}/${mes}/${ano}`,
+                        hora: horaAtual,
+                        status: 'Aguardando',
+                        custom_data: customDataObj,
+                        admin_id: state.adminId
+                    };
+                    const { error } = await db.from('atendimentos').insert(payload);
+                    if(error) { alert('Erro ao registrar atendimento: ' + error.message); return; }
+                }
+
+                await carregarAtendimentos();
+                closeAllDrawers();
+                
+                const tipoVal = document.getElementById('atend-tipo').value;
+                const safeId = tipoVal.replace(/[^a-zA-Z0-9]/g, '-');
+                const targetTab = Array.from(document.querySelectorAll('.tab')).find(t => t.textContent === tipoVal);
+                
+                if (statusNFGeral === 'Aguardando') {
+                    switchTab('tab-financeiro', Array.from(document.querySelectorAll('.tab')).find(t => t.textContent.includes('Financeiro')));
+                } else if (targetTab) {
+                    switchTab(`tab-${safeId}`, targetTab);
+                }
+            }
+
+            function editarAtendimento(id) {
+                const atend = state.atendimentos.find(a => a.id === id);
+                if(atend) openDrawer('drawer-atendimento', atend);
+            }
+
+            function liberarNF(id, btnElement) {
+                const card = btnElement.closest('.queue-card');
+                card.classList.add('removing'); 
+                setTimeout(async () => {
+                    const atend = state.atendimentos.find(a => a.id === id);
+                    if (!atend) return;
+
+                    const pedidosLista = getPedidosListaAtend(atend);
+                    const pedidosAtualizados = pedidosLista.map(p =>
+                        p.statusNF === 'Aguardando' ? { ...p, statusNF: 'Emitida' } : p
+                    );
+
+                    const novoCustomData = { ...(atend.customData || {}), _pedidosLista: pedidosAtualizados };
+                    const novoStatusGeral = pedidosAtualizados.some(p => p.statusNF === 'Aguardando') ? 'Aguardando' : 'Emitida';
+
+                    const { error } = await db.from('atendimentos').update({
+                        status_nf: novoStatusGeral,
+                        custom_data: novoCustomData
+                    }).eq('id', id);
+                    if(error) { alert('Erro ao liberar NF: ' + error.message); }
+                    await carregarAtendimentos();
+                }, 300);
+            }
+
+            function finalizarAtendimento(id, btnElement) {
+                const card = btnElement.closest('.queue-card');
+                card.classList.add('removing');
+                setTimeout(async () => {
+                    const agora = new Date();
+                    const dia = agora.getDate().toString().padStart(2,'0');
+                    const mes = (agora.getMonth()+1).toString().padStart(2,'0');
+                    const ano = agora.getFullYear();
+                    const horaFin = `${agora.getHours().toString().padStart(2,'0')}:${agora.getMinutes().toString().padStart(2,'0')}`;
+
+                    const { error } = await db.from('atendimentos').update({
+                        status: 'Finalizado',
+                        data_finalizacao: `${dia}/${mes}/${ano}`,
+                        hora_finalizacao: horaFin
+                    }).eq('id', id);
+                    if(error) { alert('Erro ao finalizar: ' + error.message); }
+                    await carregarAtendimentos();
+                }, 300); 
+            }
+
+            // --- REPOSIÇÃO ---
+            function adicionarFilialDestino() {
+                const container = document.getElementById('destinos-container');
+                const count = container.querySelectorAll('.destino-block').length + 1;
+                const div = document.createElement('div');
+                div.className = 'card flex-col destino-block mb-2';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1 gap-2">
+                        <input type="text" class="form-control nome-destino req-repo-edit" value="FILIAL DESTINO ${count}" style="font-weight: bold; background: transparent; border: 1px dashed var(--border); flex: 1;" title="Edite o nome da Filial">
+                        <button type="button" class="btn-icon" onclick="this.closest('.destino-block').remove()" style="color: var(--danger);" title="Remover Filial">🗑️</button>
+                    </div>
+                    <textarea class="form-control txt-destino req-repo-edit" placeholder="Produto | Estoque Atual..."></textarea>
+                `;
+                container.appendChild(div);
+            }
+
+            function analisarReposicao() {
+                let txtOrigem = document.getElementById('repo-origem').value;
+                let nomeMatriz = document.getElementById('nome-matriz').value.trim() || 'Matriz';
+                
+                function cleanExcelText(txt) {
+                    let cleaned = txt.replace(/"([^"]*)"/g, (match, p1) => {
+                        return p1.replace(/[\n\r]+/g, ' ');
+                    });
+                    cleaned = cleaned.replace(/"/g, '');
+                    return cleaned;
+                }
+
+                txtOrigem = cleanExcelText(txtOrigem);
+                state.reposicaoData = []; // Zera a memória de análise
+                
+                const origemItens = [];
+                txtOrigem.split('\n').forEach(linha => {
+                    if(!linha.trim()) return;
+                    let partes = linha.split(/\t|\|/).map(p => p.trim());
+                    if (partes.length < 3) partes = linha.split(/\s{2,}/).map(p => p.trim());
+                    if(partes.length >= 3) {
+                        const nomeOriginal = partes[0];
+                        const prod = nomeOriginal.toUpperCase();
+                        if (prod.length < 2 || prod === 'PRODUTO') return;
+                        const saida30 = parseInt(partes[1].replace(/\./g, ''), 10) || 0;
+                        const estMatriz = parseInt(partes[2].replace(/\./g, ''), 10) || 0;
+                        origemItens.push({ nomeOriginal, prod, saida30, estMatriz });
+                    }
+                });
+
+                const blocosDestino = document.querySelectorAll('.destino-block');
+                
+                blocosDestino.forEach(bloco => {
+                    const nomeFilial = bloco.querySelector('.nome-destino').value.trim() || 'Filial Solicitante';
+                    let txtDestino = cleanExcelText(bloco.querySelector('.txt-destino').value);
+                    
+                    const estoqueFilial = {};
+                    const nomesFilial = {};
+                    txtDestino.split('\n').forEach(linha => {
+                        if(!linha.trim()) return;
+                        let partes = linha.split(/\t|\|/).map(p => p.trim());
+                        if (partes.length < 2) partes = linha.split(/\s{2,}/).map(p => p.trim());
+                        if(partes.length >= 2) {
+                            const nomeOriginal = partes[0];
+                            const prod = nomeOriginal.toUpperCase();
+                            const qtd = parseInt(partes[1].replace(/\./g, ''), 10) || 0;
+                            if (prod.length > 1 && prod !== 'PRODUTO') {
+                                estoqueFilial[prod] = qtd;
+                                nomesFilial[prod] = nomeOriginal;
+                            }
+                        }
+                    });
+
+                    const processadosMatriz = new Set();
+
+                    origemItens.forEach(item => {
+                        processadosMatriz.add(item.prod);
+                        const repor = item.saida30 - item.estMatriz;
+                        let estFilial = estoqueFilial[item.prod];
+                        let obs = "-";
+                        let rowClass = "";
+                        let category = "";
+                        
+                        if(estFilial === undefined) {
+                            obs = "⚠️ Não consta na Filial / Diferente";
+                            rowClass = "warning-row";
+                            category = "falta";
+                        } else if(repor > 0) {
+                            if(item.estMatriz === 0) rowClass = 'critical-row';
+                            category = "solicitar";
+                        } else {
+                            const sobra = item.estMatriz - item.saida30;
+                            if (sobra <= item.saida30 * 0.3) {
+                                category = "perto";
+                                obs = "Estoque matriz próximo do limite";
+                            } else {
+                                category = "ok";
+                            }
+                        }
+
+                        state.reposicaoData.push({
+                            nomeMatriz, nomeFilial, nomeOriginal: item.nomeOriginal, prod: item.prod,
+                            eMatriz: item.estMatriz, saida: item.saida30, eFilial: estFilial !== undefined ? estFilial : '-',
+                            repor: repor > 0 ? repor : 0, obs, rowClass, category
+                        });
+                    });
+
+                    for (let prod in estoqueFilial) {
+                        if (!processadosMatriz.has(prod)) {
+                            state.reposicaoData.push({
+                                nomeMatriz, nomeFilial, nomeOriginal: nomesFilial[prod], prod: prod,
+                                eMatriz: '-', saida: '-', eFilial: estoqueFilial[prod],
+                                repor: 'Solicitar', obs: '⚠️ Não tem na Matriz', rowClass: 'info-row', category: 'so-filial'
+                            });
+                        }
+                    }
+                });
+
+                document.getElementById('repo-filters').classList.remove('hidden');
+                document.getElementById('repo-result-card').style.display = 'block';
+                
+                const firstTab = document.querySelector('#repo-filters .tab');
+                app.filtrarReposicao('solicitar', firstTab);
+            }
+
+            function filtrarReposicao(filtro, element) {
+                if (element) {
+                    document.querySelectorAll('#repo-filters .tab').forEach(t => t.classList.remove('active'));
+                    element.classList.add('active');
+                }
+                
+                const tbody = document.querySelector('#tabela-reposicao tbody');
+                tbody.innerHTML = '';
+                
+                let filtered = state.reposicaoData;
+                if (filtro !== 'todos') {
+                    filtered = state.reposicaoData.filter(item => item.category === filtro);
+                }
+                
+                let resultados = 0;
+                filtered.forEach(item => {
+                    resultados++;
+                    const tr = document.createElement('tr');
+                    if (item.rowClass === 'info-row') tr.style.backgroundColor = "rgba(47, 129, 247, 0.05)";
+                    else if (item.rowClass) tr.className = item.rowClass;
+
+                    const reporText = item.repor === 'Solicitar' ? item.repor : (item.repor > 0 ? `${item.repor} PÇS` : '-');
+                    const wppText = `*${item.nomeMatriz}* - *${item.nomeFilial}*\n${item.nomeOriginal} - ${reporText}`;
+                    const wppLink = `https://wa.me/?text=${encodeURIComponent(wppText)}`;
+
+                    tr.innerHTML = `
+                        <td><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${item.nomeMatriz.substring(0,12)}...</span></td>
+                        <td><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${item.nomeFilial.substring(0,12)}...</span></td>
+                        <td><strong>${item.nomeOriginal}</strong></td>
+                        <td>${item.eMatriz}</td>
+                        <td>${item.saida}</td>
+                        <td>${item.eFilial}</td>
+                        <td><strong style="color: ${item.repor === 'Solicitar' ? 'var(--accent)' : 'inherit'};">${item.repor}</strong></td>
+                        <td style="${item.rowClass === 'warning-row' ? 'color: var(--warning);' : (item.rowClass === 'info-row' ? 'color: var(--accent);' : 'color: var(--text-sec);')} font-size: 11px;">${item.obs}</td>
+                        <td class="req-repo-edit">
+                            <a href="${wppLink}" target="_blank" class="btn" style="background-color: #25D366; color: white; padding: 0.3rem 0.6rem; text-decoration: none; font-size: 11px;" title="Enviar WhatsApp">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                            </a>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                if(resultados === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--text-sec)">Nenhum item nesta categoria.</td></tr>';
+                    document.getElementById('btn-export-repo').style.display = 'none';
+                } else {
+                    document.getElementById('btn-export-repo').style.display = 'inline-flex';
+                }
+            }
+
+            function exportarReposicao() {
+                const rows = document.querySelectorAll('#tabela-reposicao tbody tr');
+                let txt = "Origem\tDestino\tProduto\tEstoque Matriz\tSaída 30d\tEstoque Filial\tQtd a Repor\tObservação\n";
+                rows.forEach(r => {
+                    const cols = r.querySelectorAll('td');
+                    if(cols.length > 7) {
+                        txt += `${cols[0].innerText}\t${cols[1].innerText}\t${cols[2].innerText}\t${cols[3].innerText}\t${cols[4].innerText}\t${cols[5].innerText}\t${cols[6].innerText}\t${cols[7].innerText}\n`;
+                    }
+                });
+                
+                const textArea = document.createElement("textarea");
+                textArea.value = txt;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    alert("Relatório de reposição copiado para a área de transferência!");
+                } catch (err) {
+                    console.error('Falha ao copiar', err);
+                }
+                document.body.removeChild(textArea);
+            }
+
+            // --- CONFIGURAÇÕES / USUÁRIOS ---
+            function renderUsuarios() {
+    const tbody = document.querySelector('#tabela-usuarios tbody');
+    tbody.innerHTML = '';
+    state.users.forEach(u => {
+        const tr = document.createElement('tr');
+        
+        let toggleAdminBtn = '';
+        if (!u.isSystem) {
+            if (u.perfil === 'Administrador') {
+                toggleAdminBtn = `<button class="btn btn-warning" style="padding: 0.3rem 0.6rem; font-size: 11px;" title="Rebaixar para Operador">👤 Tornar Operador</button>`;
+            } else {
+                toggleAdminBtn = `<button class="btn btn-success" style="padding: 0.3rem 0.6rem; font-size: 11px;" title="Promover a Administrador">👑 Tornar Admin</button>`;
+            }
+        }
+
+        tr.innerHTML = `
+            <td>${u.nome}</td>
+            <td>${u.login}</td>
+            <td>${u.perfil}</td>
+            <td class="req-config-edit flex gap-1">
+                <button class="btn-icon" title="Editar">✏️</button>
+                ${!u.isSystem ? `<button class="btn-icon" title="Excluir">🗑️</button>` : '<span style="color:var(--text-sec); font-size:11px;">Sistema</span>'}
+                ${toggleAdminBtn}
+            </td>
+        `;
+
+        // Adiciona eventos por referência (evita problema com UUID no onclick)
+        const btns = tr.querySelectorAll('button');
+        let btnIdx = 0;
+        btns[btnIdx++].addEventListener('click', () => app.editarUsuario(u.id));
+        if (!u.isSystem) {
+            btns[btnIdx++].addEventListener('click', () => app.excluirUsuario(u.id));
+            btns[btnIdx++].addEventListener('click', () => app.alternarCargoUsuario(u.id, u.perfil === 'Administrador' ? 'Operador' : 'Administrador'));
+        }
+
+        tbody.appendChild(tr);
+    });
+}
+
+            function alternarCargoUsuario(id, novoCargo) {
+                const idx = state.users.findIndex(u => u.id === id);
+                if(idx > -1) {
+                    state.users[idx].perfil = novoCargo;
+                    
+                    if(novoCargo === 'Administrador') {
+                        state.users[idx].permissoes = {
+                            pedidos: { ver: true, editar: true },
+                            atendimento: { ver: true, editar: true },
+                            reposicao: { ver: true, editar: true },
+                            config: { ver: true, editar: true }
+                        };
+                    }
+                    
+                    if(state.currentUser.id === id) {
+                        state.currentUser = state.users[idx];
+                        applyPermissions();
+                        document.getElementById('logged-user-role').innerText = novoCargo;
+                    }
+                    renderUsuarios();
+                }
+            }
+
+            function handlePerfilChange() {
+                const perfil = document.getElementById('user-perfil').value;
+                if(perfil === 'Administrador') {
+                    document.querySelectorAll('.perm-cb').forEach(cb => cb.checked = true);
+                }
+            }
+
+            function editarUsuario(id) {
+                const user = state.users.find(u => u.id === id);
+                if(user) openDrawer('drawer-usuario', user);
+            }
+
+           async function salvarUsuario() {
+    const id = document.getElementById('user-id').value;
+    const nome = document.getElementById('user-nome').value.trim();
+    const login = document.getElementById('user-login').value.trim();
+    const senha = document.getElementById('user-senha').value.trim();
+    if(!nome || !login || !senha) { alert('Preencha Nome, Login e Senha.'); return; }
+
+    const { data: adminData } = await db.auth.getUser();
+    if (!adminData?.user) return;
+
+    const permissoes = {
+        pedidos:     { ver: document.getElementById('perm-pedidos-ver').checked, editar: document.getElementById('perm-pedidos-editar').checked },
+        atendimento: { ver: document.getElementById('perm-atend-ver').checked,   editar: document.getElementById('perm-atend-editar').checked },
+        reposicao:   { ver: document.getElementById('perm-repo-ver').checked,    editar: document.getElementById('perm-repo-editar').checked },
+        config:      { ver: document.getElementById('perm-config-ver').checked,  editar: document.getElementById('perm-config-editar').checked }
+    };
+
+    const data = {
+        admin_id: adminData.user.id,
+        nome: document.getElementById('user-nome').value,
+        login: document.getElementById('user-login').value,
+        senha: document.getElementById('user-senha').value,
+        perfil: document.getElementById('user-perfil').value,
+        permissoes,
+        ativo: true
+    };
+
+    if(id) {
+        await db.from('usuarios_sistema').update(data).eq('id', id);
+    } else {
+        await db.from('usuarios_sistema').insert(data);
+    }
+
+    await carregarUsuarios();
+    closeDrawer('drawer-usuario');
+}
+
+async function carregarUsuarios() {
+    const { data: adminData } = await db.auth.getUser();
+    if (!adminData?.user) return;
+
+    const { data: usuarios } = await db
+        .from('usuarios_sistema')
+        .select('*')
+        .eq('admin_id', adminData.user.id)
+        .eq('ativo', true);
+
+    if (usuarios) {
+        state.users = usuarios.map(u => ({
+            id: u.id,
+            nome: u.nome,
+            login: u.login,
+            senha: u.senha,
+            perfil: u.perfil,
+            isSystem: false,
+            permissoes: u.permissoes || {
+                pedidos:     { ver: true, editar: false },
+                atendimento: { ver: true, editar: false },
+                reposicao:   { ver: true, editar: false },
+                config:      { ver: false, editar: false }
+            },
+            theme: 'dark',
+            accent: '#2F81F7'
+        }));
+        renderUsuarios();
+    }
+}
+
+            async function excluirUsuario(id) {
+    if(!(await confirmar('Excluir este usuário?'))) return;
+    await db.from('usuarios_sistema')
+        .update({ ativo: false })
+        .eq('id', id);
+    await carregarUsuarios();
+}
+
+            // API Pública
+            return {
+                init, toggleTheme, toggleMonitorMode, logout, switchTab, openDrawer, closeAllDrawers,
+                setAccent, handleAvatarUpload, applyPermissions,
+                
+                salvarPedido, editarPedido, excluirPedido,
+                adicionarCampoPedidoAtend, removerCampoPedidoAtend, getPedidosListaAtend,
+                carregarPedidos, carregarAtendimentos, carregarMotoristas,
+                salvarConfig, carregarConfigs,
+                confirmar, _confirmResolve: null,
+                iniciarPolling, pararPolling,
+                renderStatusUI, toggleStatusManager, adicionarStatus, 
+                iniciarEdicaoStatus, iniciarExclusaoStatus, cancelarAcaoStatus, 
+                salvarEdicaoStatus, confirmarExclusaoStatus,
+                toggleFieldManager, toggleFieldOptions, adicionarCampo, excluirCampo, moverCampo,
+                
+                renderTipoAtendUI, toggleTipoAtendManager, adicionarTipoAtend, 
+                iniciarEdicaoTipoAtend, iniciarExclusaoTipoAtend, cancelarAcaoTipoAtend,
+                salvarEdicaoTipoAtend, confirmarExclusaoTipoAtend,
+
+                renderStatusNFUI, toggleStatusNFManager, adicionarStatusNF, 
+                iniciarEdicaoStatusNF, iniciarExclusaoStatusNF, cancelarAcaoStatusNF,
+                salvarEdicaoStatusNF, confirmarExclusaoStatusNF,
+                
+                toggleFieldAtendManager, toggleFieldAtendOptions, adicionarCampoAtend, excluirCampoAtend, moverCampoAtend, 
+
+                handleDragStart, handleDragOver, handleDrop, 
+                handleTabDragStart, handleTabDragOver, handleTabDrop, 
+                salvarAtendimento, editarAtendimento, finalizarAtendimento, liberarNF,
+                renderMotoristas, salvarMotorista, editarMotorista, excluirMotorista,
+                adicionarFilialDestino,
+                analisarReposicao, filtrarReposicao, exportarReposicao,
+                handlePerfilChange, salvarUsuario, editarUsuario, excluirUsuario, alternarCargoUsuario
+            };
+        })();
+
+        // Inicializa a aplicação ao carregar
+        window.addEventListener('DOMContentLoaded', app.init);
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const { createClient } = supabase
+
+  const db = createClient(
+    'https://wxcjktlsynlzyjtusfmy.supabase.co',   // sua Project URL
+    'sb_publishable_HJVKAFuhVQZu6mOyWkMTgw_ISL8sZP5' // sua chave publicável
+  )
+
+  // ─── CADASTRO ───────────────────────────────────────
+  async function cadastrarUsuario(email, password) {
+  const { data, error } = await db.auth.signUp({ 
+    email, 
+    password,
+    options: { emailRedirectTo: null }
+  })
+  if (error) {
+    console.error('Erro no cadastro:', error.message)
+    return null
+  }
+  console.log('Usuário cadastrado:', data.user.email)
+  return data.user
+}
+
+  // ─── LOGIN ──────────────────────────────────────────
+  async function loginUsuario(email, password) {
+    const { data, error } = await db.auth.signInWithPassword({ email, password })
+    if (error) {
+      console.error('Erro no login:', error.message)
+      return null
+    }
+    console.log('Login realizado:', data.user.email)
+    return data.user
+  }
+
+  // ─── LOGOUT ─────────────────────────────────────────
+  async function logoutUsuario() {
+    const { error } = await db.auth.signOut()
+    if (error) {
+      console.error('Erro no logout:', error.message)
+      return
+    }
+    console.log('Logout realizado')
+  }
+
+  // ─── USUÁRIO ATUAL ───────────────────────────────────
+  async function getUsuarioAtual() {
+    const { data } = await db.auth.getUser()
+    return data.user
+  }
+
+  // ─── MONITORAR SESSÃO ────────────────────────────────
+  db.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN') {
+      console.log('Sessão ativa:', session.user.email)
+      // aqui você chama a função que carrega a tela principal
+    }
+    if (event === 'SIGNED_OUT') {
+      console.log('Sessão encerrada')
+      // aqui você chama a função que mostra a tela de login
+    }
+  })
+</script>
+
+</body>
+</html>
