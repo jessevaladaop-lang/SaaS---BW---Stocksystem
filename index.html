@@ -655,6 +655,7 @@ body.monitor-mode .queue-card button { display: none !important; }
                     <div class="tab active" id="tab-op-sep-btn" onclick="app.switchTab('op-sep', this); app.renderOperacional();">📦 Fila de Separação</div>
                     <div class="tab" id="tab-op-conf-btn" onclick="app.switchTab('op-conf', this); app.renderOperacional();">📋 Fila de Conferência</div>
                     <div class="tab" id="tab-op-alt-btn" onclick="app.switchTab('op-alt', this); app.renderOperacional();">⚠️ Pedidos de Alteração</div>
+                    <div class="tab" id="tab-op-atraso-btn" onclick="app.switchTab('op-atraso', this); app.renderOperacional();">⏰ Atrasados</div>
                 </div>
                 <button class="btn btn-secondary" id="btn-voz-op" onclick="app.comandoVozBaixa()" title="Dar baixa por voz" style="margin: 0.3rem;">🎤 Voz</button>
             </div>
@@ -683,6 +684,16 @@ body.monitor-mode .queue-card button { display: none !important; }
                     <div class="table-container op-table-container">
                         <table id="tabela-op-alt">
                             <thead><tr id="thead-op-alt"></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div id="op-atraso" class="tab-content">
+                <div class="card">
+                    <div class="table-container op-table-container">
+                        <table id="tabela-op-atraso">
+                            <thead><tr id="thead-op-atraso"></tr></thead>
                             <tbody></tbody>
                         </table>
                     </div>
@@ -1419,8 +1430,8 @@ body.monitor-mode .queue-card button { display: none !important; }
                     <div class="form-group"><label>Data do recebimento *</label>
                         <input type="date" id="dev-ci-data" class="form-control" onchange="app.gerarProtocoloCheckin()">
                     </div>
-                    <div class="form-group"><label>Protocolo (gerado automaticamente)</label>
-                        <input type="text" id="dev-ci-protocolo" class="form-control" readonly style="background:var(--hover-bg); font-weight:600;" placeholder="Preencha a data para gerar">
+                    <div class="form-group"><label>Protocolo (gerado automaticamente — editável)</label>
+                        <input type="text" id="dev-ci-protocolo" class="form-control" style="font-weight:600;" placeholder="Preencha a data para gerar" oninput="app._protocoloEditadoManual = true;">
                     </div>
                     <div class="form-group"><label>Expedição</label>
                         <select id="dev-ci-expedicao" class="form-control">
@@ -4632,8 +4643,11 @@ const app = (function() {
     }
 
     function gerarProtocoloCheckin() {
+        const campo = document.getElementById('dev-ci-protocolo');
+        // Se o usuário editou o protocolo à mão, não sobrescreve
+        if (app._protocoloEditadoManual && campo.value.trim() !== '') return;
         const dataStr = document.getElementById('dev-ci-data').value; // AAAA-MM-DD
-        if (!dataStr) { document.getElementById('dev-ci-protocolo').value = ''; return; }
+        if (!dataStr) { campo.value = ''; return; }
         const partes = dataStr.split('-'); // [ano, mes, dia]
         const dia = partes[2];
         const mes = partes[1];
@@ -4642,7 +4656,7 @@ const app = (function() {
         const mm = agora.getMinutes().toString().padStart(2, '0');
         // protocolo = HHMM + DDMM  (ex: 20h11 dia 14/08 -> 20111408)
         const protocolo = `${hh}${mm}${dia}${mes}`;
-        document.getElementById('dev-ci-protocolo').value = protocolo;
+        campo.value = protocolo;
     }
 
     async function salvarCheckin() {
@@ -4667,6 +4681,7 @@ const app = (function() {
         document.getElementById('dev-ci-recebido').value = '';
         document.getElementById('dev-ci-data').value = '';
         document.getElementById('dev-ci-protocolo').value = '';
+        app._protocoloEditadoManual = false;
         document.getElementById('dev-ci-expedicao').value = '';
         document.getElementById('dev-ci-cliente').value = '';
         document.getElementById('dev-ci-volumes').value = '';
@@ -4964,7 +4979,7 @@ const app = (function() {
                     <div><label style="${lbl}">Garantia</label><select id="saq-gar-${i.id}" class="form-control" style="${inp}" onchange="app.salvarSaqueItem('${i.id}')"><option value="">-</option><option value="Sim"${(i.sacGarantia||'')==='Sim'?' selected':''}>Sim</option><option value="Não"${(i.sacGarantia||'')==='Não'?' selected':''}>Não</option></select></div>
                     <div><label style="${lbl}">Método</label><select id="saq-met-${i.id}" class="form-control" style="${inp}" onchange="app.salvarSaqueItem('${i.id}')"><option value="">-</option><option value="Garantia"${met==='Garantia'?' selected':''}>Garantia</option><option value="Devolução"${met==='Devolução'?' selected':''}>Devolução</option></select></div>
                     <div><label style="${lbl}">Solução</label><select id="saq-sol-${i.id}" class="form-control" style="${inp}" onchange="app.salvarSaqueItem('${i.id}')">${opcoesSolucao}</select></div>
-                    <div><label style="${lbl}">Valor Unit.</label><input type="number" id="saq-vu-${i.id}" class="form-control" style="${inp}" step="0.01" placeholder="0,00" value="${i.sacValorUnit != null ? i.sacValorUnit : ''}" onblur="app.salvarSaqueItem('${i.id}')"></div>
+                    <div><label style="${lbl}">Valor Unit.</label><input type="number" id="saq-vu-${i.id}" class="form-control" style="${inp}" step="0.01" placeholder="0,00" value="${i.sacValorUnit != null ? i.sacValorUnit : ''}" oninput="app.calcularValoresSaque('${i.id}', ${i.quantidade || 0})" onblur="app.salvarSaqueItem('${i.id}')"></div>
                     <div><label style="${lbl}">Valor Total</label><input type="number" id="saq-vt-${i.id}" class="form-control" style="${inp}" step="0.01" placeholder="0,00" value="${i.sacValorTotal != null ? i.sacValorTotal : ''}" onblur="app.salvarSaqueItem('${i.id}')"></div>
                     <div><label style="${lbl}">Data Crédito</label><input type="date" id="saq-dc-${i.id}" class="form-control" style="${inp}" value="${i.sacDataCredito || ''}" onblur="app.salvarSaqueItem('${i.id}')"></div>
                     <div><label style="${lbl}">Valor Crédito</label><input type="number" id="saq-vc-${i.id}" class="form-control" style="${inp}" step="0.01" placeholder="0,00" value="${i.sacValorCredito != null ? i.sacValorCredito : ''}" onblur="app.salvarSaqueItem('${i.id}')"></div>
@@ -4978,6 +4993,18 @@ const app = (function() {
         let dl = document.getElementById('saq-vend-datalist');
         if (!dl) { dl = document.createElement('datalist'); dl.id = 'saq-vend-datalist'; cont.appendChild(dl); }
         dl.innerHTML = opcoesVend;
+    }
+
+    function calcularValoresSaque(itemId, quantidade) {
+        const vu = document.getElementById(`saq-vu-${itemId}`);
+        const vt = document.getElementById(`saq-vt-${itemId}`);
+        const vc = document.getElementById(`saq-vc-${itemId}`);
+        if (!vu) return;
+        const unit = vu.value !== '' ? parseFloat(vu.value) : null;
+        if (unit == null || isNaN(unit)) return;
+        const total = +(unit * (quantidade || 0)).toFixed(2);
+        if (vt) vt.value = total;
+        if (vc) vc.value = total;
     }
 
     async function salvarSaqueItem(itemId) {
@@ -5062,6 +5089,24 @@ const app = (function() {
         }
     }
 
+    function editarItemDevolucao(itemId) {
+        const item = state.devItens.find(i => i.id === itemId);
+        if (!item) { avisar('Item não encontrado.'); return; }
+        const prod = state.devProdutos.find(p => p.id === item.produtoId);
+        document.getElementById('dev-rel-codigo').value = prod ? prod.referencia : '';
+        document.getElementById('dev-rel-produto').value = prod ? prod.descricao : '';
+        document.getElementById('dev-rel-qtd').value = item.quantidade || '';
+        document.getElementById('dev-rel-lote').value = item.lote || '';
+        document.getElementById('dev-rel-funciona').value = item.funciona || '';
+        document.getElementById('dev-rel-condicao').value = item.condicao || '';
+        document.getElementById('dev-rel-caixa').value = item.caixaDescarte || '';
+        document.getElementById('dev-rel-obs').value = item.observacao || '';
+        state._editandoDevItemId = itemId;
+        const btnAdd = document.querySelector('#drawer-dev-relatorio .drawer-body .btn-primary');
+        if (btnAdd) btnAdd.textContent = '💾 Salvar Alterações';
+        document.getElementById('dev-rel-codigo').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     async function addItemDevolucao() {
         if (!_relCheckinAtual) return;
         const cod = document.getElementById('dev-rel-codigo').value.trim();
@@ -5090,12 +5135,22 @@ const app = (function() {
             fotoUrl = urlData ? urlData.publicUrl : null;
         }
 
-        const { error } = await db.from('dev_itens').insert({
-            checkin_id: _relCheckinAtual.id, produto_id: prod.id, quantidade: qtd,
-            lote: lote, funciona: funciona, condicao: condicao, caixa_descarte: caixa,
-            observacao: obs, foto_url: fotoUrl
-        });
-        if (error) { avisar('Erro ao adicionar item: ' + error.message); return; }
+        let error;
+        if (state._editandoDevItemId) {
+            const payload = { produto_id: prod.id, quantidade: qtd, lote: lote, funciona: funciona, condicao: condicao, caixa_descarte: caixa, observacao: obs };
+            if (fotoUrl) payload.foto_url = fotoUrl; // só troca a foto se enviou uma nova
+            ({ error } = await db.from('dev_itens').update(payload).eq('id', state._editandoDevItemId));
+            state._editandoDevItemId = null;
+            const btnAdd = document.querySelector('#drawer-dev-relatorio .drawer-body .btn-primary');
+            if (btnAdd) btnAdd.textContent = '+ Adicionar Item';
+        } else {
+            ({ error } = await db.from('dev_itens').insert({
+                checkin_id: _relCheckinAtual.id, produto_id: prod.id, quantidade: qtd,
+                lote: lote, funciona: funciona, condicao: condicao, caixa_descarte: caixa,
+                observacao: obs, foto_url: fotoUrl
+            }));
+        }
+        if (error) { avisar('Erro ao salvar item: ' + error.message); return; }
         if (_relCheckinAtual.status === 'Pendente') {
             await db.from('dev_checkins').update({ status: 'Em Análise' }).eq('id', _relCheckinAtual.id);
         }
@@ -5116,7 +5171,7 @@ const app = (function() {
             const prod = state.devProdutos.find(p => p.id === i.produtoId);
             const fotoCell = i.fotoUrl ? `<a href="${escapeWms(i.fotoUrl)}" target="_blank" title="Ver foto"><img src="${escapeWms(i.fotoUrl)}" style="width:34px; height:34px; object-fit:cover; border-radius:4px;"></a>` : '<span style="color:var(--text-sec);">—</span>';
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td><strong>${escapeWms(prod ? prod.referencia : '?')}</strong></td><td>${escapeWms(prod ? prod.descricao : '?')}</td><td>${i.quantidade || 0}</td><td>${escapeWms(i.lote)}</td><td>${escapeWms(i.funciona)}</td><td>${escapeWms(i.condicao)}</td><td>${escapeWms(i.caixaDescarte)}</td><td>${escapeWms(i.observacao)}</td><td>${fotoCell}</td><td><button class="btn-icon" style="color:var(--danger); padding:0.2rem;" title="Remover" onclick="app.removerItemDevolucao('${i.id}')">🗑️</button></td>`;
+            tr.innerHTML = `<td><strong>${escapeWms(prod ? prod.referencia : '?')}</strong></td><td>${escapeWms(prod ? prod.descricao : '?')}</td><td>${i.quantidade || 0}</td><td>${escapeWms(i.lote)}</td><td>${escapeWms(i.funciona)}</td><td>${escapeWms(i.condicao)}</td><td>${escapeWms(i.caixaDescarte)}</td><td>${escapeWms(i.observacao)}</td><td>${fotoCell}</td><td style="white-space:nowrap;"><button class="btn-icon" style="padding:0.2rem;" title="Editar" onclick="app.editarItemDevolucao('${i.id}')">✏️</button> <button class="btn-icon" style="color:var(--danger); padding:0.2rem;" title="Remover" onclick="app.removerItemDevolucao('${i.id}')">🗑️</button></td>`;
             tbody.appendChild(tr);
         });
     }
@@ -5331,6 +5386,10 @@ const app = (function() {
         let theadHtml = ''; colsOperacional.forEach(colId => { theadHtml += `<th>${getColLabel(colId)}</th>`; }); theadHtml += `<th>Ação: Responsável</th>`;
         theadSep.innerHTML = theadHtml; theadConf.innerHTML = theadHtml;
         if (theadAlt) { let hAlt = ''; colsOperacional.forEach(colId => { hAlt += `<th>${getColLabel(colId)}</th>`; }); hAlt += `<th>Motivo</th><th>Ação</th>`; theadAlt.innerHTML = hAlt; }
+        const theadAtraso = document.getElementById('thead-op-atraso');
+        if (theadAtraso) { let hAt = ''; colsOperacional.forEach(colId => { hAt += `<th>${getColLabel(colId)}</th>`; }); hAt += `<th>Fila atual</th><th>Atraso</th>`; theadAtraso.innerHTML = hAt; }
+        const tbodyAtraso = document.querySelector('#tabela-op-atraso tbody');
+        if (tbodyAtraso) tbodyAtraso.innerHTML = '';
         const tbodySep = document.querySelector('#tabela-op-sep tbody'); const tbodyConf = document.querySelector('#tabela-op-conf tbody'); const tbodyAlt = document.querySelector('#tabela-op-alt tbody'); tbodySep.innerHTML = ''; tbodyConf.innerHTML = ''; if (tbodyAlt) tbodyAlt.innerHTML = '';
         const statusPendente = state.statusList[0]; const statusSeparacao = state.statusList[1]; const statusAlteracao = state.statusList[5] || 'Em Alteração';
         // Há busca ativa? (usada para mostrar pendentes na conferência)
@@ -5345,6 +5404,20 @@ const app = (function() {
                 if (isSep) { let selectHtml = `<select id="op-sel-sep-${p.id}" class="form-control req-op-sep-edit" style="width: auto; display: inline-block; padding: 0.3rem; margin-right: 0.5rem;"><option value="">-- Selecione --</option>`; state.responsaveisSep.forEach(r => selectHtml += `<option value="${r}">${r}</option>`); selectHtml += `</select>`; rowHtml += `<td style="display: flex; gap: 0.5rem; align-items: center; white-space: nowrap;">${selectHtml}<button class="btn btn-secondary req-op-sep-edit" onclick="app.abrirModalAlteracao('${p.id}')" title="Reportar para Alteração" style="color: var(--warning); border-color: var(--warning);">⚠️ Alteração</button><button class="btn btn-success req-op-sep-edit" onclick="app.confirmarSeparacao('${p.id}')">✔ Confirmar</button></td>`; const tr = document.createElement('tr'); tr.innerHTML = rowHtml; tbodySep.appendChild(tr); }
                 else if (isConf) { let selectHtml = `<select id="op-sel-conf-${p.id}" class="form-control req-op-conf-edit" style="width: auto; display: inline-block; padding: 0.3rem; margin-right: 0.5rem;"><option value="">-- Selecione --</option>`; state.responsaveisConf.forEach(r => selectHtml += `<option value="${r}">${r}</option>`); selectHtml += `</select>`; rowHtml += `<td style="display: flex; gap: 0.5rem; align-items: center; white-space: nowrap;">${selectHtml}<button class="btn btn-secondary req-op-conf-edit" onclick="app.abrirModalAlteracao('${p.id}')" title="Reportar para Alteração" style="color: var(--warning); border-color: var(--warning);">⚠️ Alteração</button><button class="btn btn-warning req-op-conf-edit" onclick="app.abrirModalInconformidade('${p.id}', '${p.num}', '${p.sep}')" style="color: #fff; background-color: var(--warning); border-color: var(--warning);" title="Registrar Inconformidade">⚠️ Inconformidade</button><button class="btn btn-success req-op-conf-edit" onclick="app.confirmarConferencia('${p.id}')">✔ Confirmar</button></td>`; const tr = document.createElement('tr'); tr.innerHTML = rowHtml; tbodyConf.appendChild(tr); }
                 else if (isAlt && tbodyAlt) { const alt = (p.customData && p.customData._alteracao) || {}; const qtdItens = (alt.itens || []).length; const resp = alt.respostaVendedor ? `<span style="color: var(--success);">✔ Respondido</span>` : `<span style="color: var(--warning);">Aguardando vendedor</span>`; rowHtml += `<td style="font-size: 11px; color: var(--text-sec);">${qtdItens} item(ns) · ${resp}</td><td style="white-space: nowrap;"><button class="btn btn-secondary" onclick="app.verAlteracao('${p.id}')">👁 Ver</button> <button class="btn btn-success" onclick="app.liberarAlteracao('${p.id}')" title="Liberar para Conferência">✔ Liberar</button></td>`; const tr = document.createElement('tr'); tr.innerHTML = rowHtml; tbodyAlt.appendChild(tr); }
+
+                // Atrasados: pedidos em Separação ou Conferência há mais de 24h da data do pedido
+                if ((isSep || isConf) && tbodyAtraso && p.data) {
+                    const dtPedido = new Date(p.data + 'T00:00:00');
+                    const horas = (Date.now() - dtPedido.getTime()) / 36e5;
+                    if (horas >= 24) {
+                        let rowHtmlAt = ''; colsOperacional.forEach(colId => { rowHtmlAt += `<td data-label="${getColLabel(colId)}">${getColContent(p, colId)}</td>`; });
+                        const fila = isSep ? 'Separação' : 'Conferência';
+                        const dias = Math.floor(horas / 24);
+                        const atrasoTxt = dias >= 1 ? `${dias}d ${Math.floor(horas % 24)}h` : `${Math.floor(horas)}h`;
+                        rowHtmlAt += `<td><span class="badge" style="background:var(--warning); color:#fff; font-size:10px;">${fila}</span></td><td style="color:var(--danger,#dc3545); font-weight:600;">⏰ ${atrasoTxt}</td>`;
+                        const trAt = document.createElement('tr'); trAt.innerHTML = rowHtmlAt; tbodyAtraso.appendChild(trAt);
+                    }
+                }
 
                 // Pendente que bate a busca: também renderiza na Conferência (marcado)
                 if (mostrarNaConf && tbodyConf) {
@@ -7579,9 +7652,9 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         switchRegSubtab, carregarFiscalClientes, carregarFiscalVendedores, renderClientes, renderVendedores, importarClientesArquivo, importarVendedoresArquivo, abrirModalCliente, salvarCliente, excluirCliente, abrirModalVendedor, salvarVendedor, excluirVendedor,
         switchFisSubtab, carregarFiscalEnvios, renderFiscalFila, abrirFiscalPedido, anexarDoc, removerDoc, renderFiscalHistorico, abrirHistoricoCliente, enviarDocumentos, salvarWebhookN8n, carregarWebhookN8n, toggleExpandir,
         carregarDevListas, renderDevListas, addDevLista, excluirDevLista,
-        carregarDevCheckins, renderDevCheckin, gerarProtocoloCheckin, salvarCheckin,
+        carregarDevCheckins, renderDevCheckin, gerarProtocoloCheckin, salvarCheckin, editarItemDevolucao,
         renderDevRegistro, abrirRelatorioDevolucao, onDevCodigoInput, onDevProdutoInput, addItemDevolucao, renderItensRelatorio, removerItemDevolucao, excluirDevolucao,
-        salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, switchSacSubtab, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac,
+        salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, switchSacSubtab, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac,
         finalizarDevolucaoSaque, renderDevDescarte, exportarDescartePDF, exportarDescarteExcel,
         carregarWmsEnderecos, renderWmsEnderecos, abrirModalWmsEndereco, salvarWmsEndereco, excluirWmsEndereco, verWmsQr, imprimirWmsQr,
         carregarWmsSaldos, renderWmsSaldos, renderWmsTotais, abrirModalWmsSaldo, salvarWmsSaldo, excluirWmsSaldo,
