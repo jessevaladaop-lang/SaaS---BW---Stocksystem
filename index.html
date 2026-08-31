@@ -1430,6 +1430,12 @@ body.monitor-mode .queue-card button { display: none !important; }
                     <div class="form-group"><label>Data do recebimento *</label>
                         <input type="date" id="dev-ci-data" class="form-control" onchange="app.gerarProtocoloCheckin()">
                     </div>
+                    <div class="form-group"><label>Tipo de devolução</label>
+                        <select id="dev-ci-tipo" class="form-control" onchange="app._protocoloEditadoManual = false; app.gerarProtocoloCheckin();">
+                            <option value="Física">Física</option>
+                            <option value="Online">Online</option>
+                        </select>
+                    </div>
                     <div class="form-group"><label>Protocolo (gerado automaticamente — editável)</label>
                         <input type="text" id="dev-ci-protocolo" class="form-control" style="font-weight:600;" placeholder="Preencha a data para gerar" oninput="app._protocoloEditadoManual = true;">
                     </div>
@@ -4072,12 +4078,22 @@ const app = (function() {
         XLSX.writeFile(wb, `descarte_${hoje}.xlsx`);
     }
 
+    function prodRefSac(i) {
+        const prod = (state.devProdutos || []).find(p => p.id === i.produtoId);
+        if (prod) return prod.referencia;
+        return i.produtoAvulsoRef || '?';
+    }
+    function prodDescSac(i) {
+        const prod = (state.devProdutos || []).find(p => p.id === i.produtoId);
+        if (prod) return prod.descricao;
+        return i.produtoAvulsoDesc || '';
+    }
+
     function gerarPdfSac() {
         if (!_saqCheckinAtual) return;
         const c = _saqCheckinAtual;
-        const itens = (state.devItens || []).filter(i => i.checkinId === c.id && (i.sacMetodo === 'Garantia' || i.sacMetodo === 'Devolução'));
-        if (itens.length === 0) { avisar('Nenhum produto com método definido.'); return; }
-        if (!itens.every(i => i.sacFinalizado === true)) { avisar('Só é possível gerar o PDF quando todos os produtos estiverem finalizados (OK).'); return; }
+        const itens = (state.devItens || []).filter(i => i.checkinId === c.id);
+        if (itens.length === 0) { avisar('Nenhum produto nesta devolução.'); return; }
         if (typeof window.jspdf === 'undefined') { avisar('Biblioteca PDF não carregada. Recarregue a página.'); return; }
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -4089,18 +4105,23 @@ const app = (function() {
         doc.text('Protocolo: ' + (c.protocolo || '—') + '  |  Emissão: ' + new Date().toLocaleDateString('pt-BR'), 14, y); y += 8;
         doc.setDrawColor(200); doc.line(14, y, 196, y); y += 7;
         const fmt = (v) => (v != null && v !== '' ? 'R$ ' + Number(v).toFixed(2) : '—');
+        let totalCredito = 0;
         for (const i of itens) {
-            const prod = (state.devProdutos || []).find(p => p.id === i.produtoId) || {};
-
-            if (y > 250) { doc.addPage(); y = 15; }
+            const ref = prodRefSac(i), desc = prodDescSac(i);
+            if (i.sacValorCredito != null && i.sacValorCredito !== '') totalCredito += Number(i.sacValorCredito);
+            if (y > 245) { doc.addPage(); y = 15; }
             doc.setFontSize(11);
-            doc.text(`${prod.referencia || '?'} - ${prod.descricao || ''}`.substring(0, 75), 14, y); y += 5;
+            doc.text(`${ref || '?'} - ${desc || ''}`.substring(0, 75), 14, y); y += 5;
             doc.setFontSize(9);
-            doc.text(`Qtd: ${i.quantidade || 0}  |  Funciona: ${i.funciona || '—'}  |  Vlr Unit: ${fmt(i.sacValorUnit)}  |  Vlr Total: ${fmt(i.sacValorTotal)}`, 14, y); y += 5;
-
+            doc.text(`Qtd: ${i.quantidade || 0}  |  Garantia: ${i.sacGarantia || '—'}  |  Funciona: ${i.funciona || '—'}  |  Vlr Unit: ${fmt(i.sacValorUnit)}  |  Vlr Total: ${fmt(i.sacValorTotal)}`, 14, y); y += 5;
+            if (i.observacaoSac) { doc.text(`Obs: ${(i.observacaoSac).substring(0, 95)}`, 14, y); y += 5; }
             y += 2;
             doc.setDrawColor(230); doc.line(14, y, 196, y); y += 6;
         }
+        if (y > 260) { doc.addPage(); y = 15; }
+        doc.setFontSize(12); doc.setFont(undefined, 'bold');
+        doc.text(`Valor total de crédito: ${fmt(totalCredito)}`, 14, y + 2);
+        doc.setFont(undefined, 'normal');
         const nomeArq = (c.cliente || 'cliente').replace(/[^a-z0-9]/gi, '_').toLowerCase();
         doc.save(`sac_${nomeArq}_${c.protocolo || ''}.pdf`);
     }
@@ -4627,7 +4648,7 @@ const app = (function() {
         const { data: itens, error: err2 } = await db.from('dev_itens').select('*').eq('admin_id', state.adminId);
         if (err2) { console.error('Erro ao carregar itens devolução:', err2.message); return; }
         state.devCheckins = (cks || []).map(c => ({ id: c.id, recebidoPor: c.recebido_por || '', dataRecebimento: c.data_recebimento || '', protocolo: c.protocolo || '', expedicao: c.expedicao || '', cliente: c.cliente || '', qtdVolumes: c.qtd_volumes || 0, observacao: c.observacao || '', status: c.status || 'Pendente', conferente: c.conferente || '', sacVendedor: c.sac_vendedor || '', sacPdfAprovado: c.sac_pdf_aprovado === true }));
-        state.devItens = (itens || []).map(i => ({ id: i.id, checkinId: i.checkin_id, produtoId: i.produto_id, quantidade: i.quantidade, lote: i.lote || '', funciona: i.funciona || '', condicao: i.condicao || '', caixaDescarte: i.caixa_descarte || '', solucao: i.solucao || '', observacaoSac: i.observacao_sac || '', observacao: i.observacao || '', fotoUrl: i.foto_url || '', sacMetodo: i.sac_metodo || '', sacGarantia: i.sac_garantia || '', sacValorUnit: i.sac_valor_unit, sacValorTotal: i.sac_valor_total, sacDataCredito: i.sac_data_credito || '', sacValorCredito: i.sac_valor_credito, sacVendedor: i.sac_vendedor || '', sacFinalizado: i.sac_finalizado === true, sacDataFinalizado: i.sac_data_finalizado || '' }));
+        state.devItens = (itens || []).map(i => ({ id: i.id, checkinId: i.checkin_id, produtoId: i.produto_id, quantidade: i.quantidade, lote: i.lote || '', funciona: i.funciona || '', condicao: i.condicao || '', caixaDescarte: i.caixa_descarte || '', solucao: i.solucao || '', observacaoSac: i.observacao_sac || '', observacao: i.observacao || '', fotoUrl: i.foto_url || '', produtoAvulsoRef: i.produto_avulso_ref || '', produtoAvulsoDesc: i.produto_avulso_desc || '', sacMetodo: i.sac_metodo || '', sacGarantia: i.sac_garantia || '', sacValorUnit: i.sac_valor_unit, sacValorTotal: i.sac_valor_total, sacDataCredito: i.sac_data_credito || '', sacValorCredito: i.sac_valor_credito, sacVendedor: i.sac_vendedor || '', sacFinalizado: i.sac_finalizado === true, sacDataFinalizado: i.sac_data_finalizado || '' }));
         if (typeof renderDevRegistro === 'function') renderDevRegistro();
         if (typeof renderDevSaque === 'function') renderDevSaque();
     }
@@ -4655,7 +4676,9 @@ const app = (function() {
         const hh = agora.getHours().toString().padStart(2, '0');
         const mm = agora.getMinutes().toString().padStart(2, '0');
         // protocolo = HHMM + DDMM  (ex: 20h11 dia 14/08 -> 20111408)
-        const protocolo = `${hh}${mm}${dia}${mes}`;
+        let protocolo = `${hh}${mm}${dia}${mes}`;
+        const tipoEl = document.getElementById('dev-ci-tipo');
+        if (tipoEl && tipoEl.value === 'Online') protocolo += '-ONLINE';
         campo.value = protocolo;
     }
 
@@ -4672,9 +4695,10 @@ const app = (function() {
         // converte data para BR
         const p = dataStr.split('-');
         const dataBR = `${p[2]}/${p[1]}/${p[0]}`;
+        const tipoDev = document.getElementById('dev-ci-tipo') ? document.getElementById('dev-ci-tipo').value : 'Física';
         const { error } = await db.from('dev_checkins').insert({
             recebido_por: recebido, data_recebimento: dataBR, protocolo: protocolo,
-            expedicao: expedicao, cliente: cliente, qtd_volumes: volumes, observacao: obs, status: 'Pendente'
+            expedicao: expedicao, cliente: cliente, qtd_volumes: volumes, observacao: obs, status: 'Pendente', tipo_devolucao: tipoDev
         });
         if (error) { avisar('Erro ao registrar: ' + error.message); return; }
         // limpa o formulário
@@ -4682,6 +4706,7 @@ const app = (function() {
         document.getElementById('dev-ci-data').value = '';
         document.getElementById('dev-ci-protocolo').value = '';
         app._protocoloEditadoManual = false;
+        if (document.getElementById('dev-ci-tipo')) document.getElementById('dev-ci-tipo').value = 'Física';
         document.getElementById('dev-ci-expedicao').value = '';
         document.getElementById('dev-ci-cliente').value = '';
         document.getElementById('dev-ci-volumes').value = '';
@@ -4810,6 +4835,9 @@ const app = (function() {
             const itens = (state.devItens || []).filter(i => i.checkinId === c.id && i.sacMetodo === metodo);
             const finalizados = itens.filter(i => i.sacFinalizado === true).length;
             const tudoOk = itens.length > 0 && finalizados === itens.length;
+            let totalCat = 0;
+            itens.forEach(i => { if (i.sacValorCredito != null && i.sacValorCredito !== '') totalCat += Number(i.sacValorCredito); });
+            const totalTxt = 'R$ ' + totalCat.toFixed(2);
             const card = document.createElement('div');
             card.style.cssText = `border:1px solid ${tudoOk ? 'var(--success,#28a745)' : 'var(--border)'}; border-radius:8px; padding:1rem; cursor:pointer; background:${tudoOk ? 'rgba(34,197,94,0.08)' : 'transparent'}; transition:border-color 0.15s;`;
             card.onmouseover = () => card.style.borderColor = 'var(--accent)';
@@ -4821,7 +4849,8 @@ const app = (function() {
                     <span style="font-size:0.72rem; font-weight:600; color:${tudoOk ? 'var(--success)' : '#f59e0b'}; border:1px solid ${tudoOk ? 'var(--success)' : '#f59e0b'}; padding:0.15rem 0.5rem; border-radius:10px; white-space:nowrap;">${finalizados}/${itens.length} concl.</span>
                 </div>
                 <div style="font-size:0.85rem; color:var(--text-sec); margin-top:0.4rem;"><strong>Protocolo:</strong> ${escapeWms(c.protocolo || '—')}</div>
-                <div style="font-size:0.85rem; color:var(--text-sec);">${escapeWms(c.dataRecebimento || '')}</div>`;
+                <div style="font-size:0.85rem; color:var(--text-sec);"><strong>Vendedor:</strong> ${escapeWms(c.sacVendedor || '—')}</div>
+                <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px dashed var(--border); font-weight:700; color:var(--accent);">Total ${escapeWms(metodo)}: ${totalTxt}</div>`;
             cont.appendChild(card);
         });
     }
@@ -4844,7 +4873,7 @@ const app = (function() {
         cont.innerHTML = '';
         if (itens.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec);">Nenhum produto.</p>'; return; }
         itens.forEach(i => {
-            const prod = (state.devProdutos || []).find(p => p.id === i.produtoId) || {};
+            const prod = (state.devProdutos || []).find(p => p.id === i.produtoId) || { referencia: prodRefSac(i), descricao: prodDescSac(i) };
             const ok = i.sacFinalizado === true;
             const dataReal = i.sacDataFinalizado ? new Date(i.sacDataFinalizado).toLocaleDateString('pt-BR') : '—';
             const div = document.createElement('div');
@@ -4944,10 +4973,10 @@ const app = (function() {
         if (!btn || !_saqCheckinAtual) return;
         const itens = (state.devItens || []).filter(i => i.checkinId === _saqCheckinAtual.id);
         const comMetodo = itens.filter(i => i.sacMetodo === 'Garantia' || i.sacMetodo === 'Devolução');
-        const todosOk = comMetodo.length > 0 && comMetodo.every(i => i.sacFinalizado === true);
-        btn.disabled = !todosOk;
-        btn.style.opacity = todosOk ? '1' : '0.5';
-        btn.title = todosOk ? 'Gerar relatório PDF do cliente' : 'Disponível quando todos os produtos estiverem finalizados (OK)';
+        const temMetodo = comMetodo.length > 0;
+        btn.disabled = !temMetodo;
+        btn.style.opacity = temMetodo ? '1' : '0.5';
+        btn.title = temMetodo ? 'Gerar relatório PDF do cliente' : 'Defina o método de ao menos um produto para gerar o PDF';
     }
 
     function renderItensSaque() {
@@ -4961,7 +4990,7 @@ const app = (function() {
         const lbl = 'display:block; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.03em; color:var(--text-sec); margin-bottom:0.2rem;';
         const inp = 'font-size:0.85rem; padding:0.4rem; width:100%;';
         itens.forEach(i => {
-            const prod = state.devProdutos.find(p => p.id === i.produtoId);
+            const prod = state.devProdutos.find(p => p.id === i.produtoId) || { referencia: prodRefSac(i), descricao: prodDescSac(i) };
             const met = i.sacMetodo || '';
             const funcOk = (i.funciona || '').toLowerCase() === 'sim';
             const funcNo = (i.funciona || '').toLowerCase() === 'não' || (i.funciona || '').toLowerCase() === 'nao';
@@ -5128,8 +5157,10 @@ const app = (function() {
     async function addItemDevolucao() {
         if (!_relCheckinAtual) return;
         const cod = document.getElementById('dev-rel-codigo').value.trim();
+        const descManual = document.getElementById('dev-rel-produto').value.trim();
         const prod = (state.devProdutos || []).find(p => p.referencia === cod);
-        if (!prod) { avisar('Selecione um produto válido pelo código ou descrição.'); return; }
+        const ehAvulso = !prod;
+        if (ehAvulso && (!cod || !descManual)) { avisar('Produto fora do cadastro: preencha o código E a descrição.'); return; }
         const qtd = parseInt(document.getElementById('dev-rel-qtd').value) || 0;
         const lote = document.getElementById('dev-rel-lote').value.trim();
         const funciona = document.getElementById('dev-rel-funciona').value;
@@ -5155,7 +5186,7 @@ const app = (function() {
 
         let error;
         if (state._editandoDevItemId) {
-            const payload = { produto_id: prod.id, quantidade: qtd, lote: lote, funciona: funciona, condicao: condicao, caixa_descarte: caixa, observacao: obs };
+            const payload = { produto_id: prod ? prod.id : null, produto_avulso_ref: ehAvulso ? cod : null, produto_avulso_desc: ehAvulso ? descManual : null, quantidade: qtd, lote: lote, funciona: funciona, condicao: condicao, caixa_descarte: caixa, observacao: obs };
             if (fotoUrl) payload.foto_url = fotoUrl; // só troca a foto se enviou uma nova
             ({ error } = await db.from('dev_itens').update(payload).eq('id', state._editandoDevItemId));
             state._editandoDevItemId = null;
@@ -5163,8 +5194,9 @@ const app = (function() {
             if (btnAdd) btnAdd.textContent = '+ Adicionar Item';
         } else {
             ({ error } = await db.from('dev_itens').insert({
-                checkin_id: _relCheckinAtual.id, produto_id: prod.id, quantidade: qtd,
-                lote: lote, funciona: funciona, condicao: condicao, caixa_descarte: caixa,
+                checkin_id: _relCheckinAtual.id, produto_id: prod ? prod.id : null,
+                produto_avulso_ref: ehAvulso ? cod : null, produto_avulso_desc: ehAvulso ? descManual : null,
+                quantidade: qtd, lote: lote, funciona: funciona, condicao: condicao, caixa_descarte: caixa,
                 observacao: obs, foto_url: fotoUrl
             }));
         }
@@ -5187,9 +5219,11 @@ const app = (function() {
         if (itens.length === 0) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:var(--text-sec); padding:0.8rem;">Nenhum item adicionado.</td></tr>'; return; }
         itens.forEach(i => {
             const prod = state.devProdutos.find(p => p.id === i.produtoId);
+            const refMostrar = prod ? prod.referencia : (i.produtoAvulsoRef || '?');
+            const descMostrar = prod ? prod.descricao : (i.produtoAvulsoDesc ? i.produtoAvulsoDesc + ' (avulso)' : '?');
             const fotoCell = i.fotoUrl ? `<a href="${escapeWms(i.fotoUrl)}" target="_blank" title="Ver foto"><img src="${escapeWms(i.fotoUrl)}" style="width:34px; height:34px; object-fit:cover; border-radius:4px;"></a>` : '<span style="color:var(--text-sec);">—</span>';
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td><strong>${escapeWms(prod ? prod.referencia : '?')}</strong></td><td>${escapeWms(prod ? prod.descricao : '?')}</td><td>${i.quantidade || 0}</td><td>${escapeWms(i.lote)}</td><td>${escapeWms(i.funciona)}</td><td>${escapeWms(i.condicao)}</td><td>${escapeWms(i.caixaDescarte)}</td><td>${escapeWms(i.observacao)}</td><td>${fotoCell}</td><td style="white-space:nowrap;"><button class="btn-icon" style="padding:0.2rem;" title="Editar" onclick="app.editarItemDevolucao('${i.id}')">✏️</button> <button class="btn-icon" style="color:var(--danger); padding:0.2rem;" title="Remover" onclick="app.removerItemDevolucao('${i.id}')">🗑️</button></td>`;
+            tr.innerHTML = `<td><strong>${escapeWms(refMostrar)}</strong></td><td>${escapeWms(descMostrar)}</td><td>${i.quantidade || 0}</td><td>${escapeWms(i.lote)}</td><td>${escapeWms(i.funciona)}</td><td>${escapeWms(i.condicao)}</td><td>${escapeWms(i.caixaDescarte)}</td><td>${escapeWms(i.observacao)}</td><td>${fotoCell}</td><td style="white-space:nowrap;"><button class="btn-icon" style="padding:0.2rem;" title="Editar" onclick="app.editarItemDevolucao('${i.id}')">✏️</button> <button class="btn-icon" style="color:var(--danger); padding:0.2rem;" title="Remover" onclick="app.removerItemDevolucao('${i.id}')">🗑️</button></td>`;
             tbody.appendChild(tr);
         });
     }
