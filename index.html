@@ -1621,6 +1621,7 @@ body.monitor-mode .queue-card button { display: none !important; }
             </div>
             <div class="drawer-body">
                 <div id="dev-saq-info" style="margin-bottom:1rem; font-size:0.88rem; color:var(--text-sec);"></div>
+                <div id="dev-saq-vendedor-cont" style="margin-bottom:1rem;"></div>
                 <div id="dev-saq-itens-cards" style="display:flex; flex-direction:column; gap:1rem;"></div>
             </div>
             <div class="drawer-footer">
@@ -4084,20 +4085,19 @@ const app = (function() {
         doc.setFontSize(16); doc.text('Relatório SAC', 14, y); y += 8;
         doc.setFontSize(11); doc.text('Cliente: ' + (c.cliente || '—'), 14, y); y += 6;
         doc.setFontSize(10);
+        doc.text('Vendedor: ' + (c.sacVendedor || '—'), 14, y); y += 6;
         doc.text('Protocolo: ' + (c.protocolo || '—') + '  |  Emissão: ' + new Date().toLocaleDateString('pt-BR'), 14, y); y += 8;
         doc.setDrawColor(200); doc.line(14, y, 196, y); y += 7;
         const fmt = (v) => (v != null && v !== '' ? 'R$ ' + Number(v).toFixed(2) : '—');
         for (const i of itens) {
             const prod = (state.devProdutos || []).find(p => p.id === i.produtoId) || {};
-            const dataCred = i.sacDataFinalizado ? new Date(i.sacDataFinalizado).toLocaleDateString('pt-BR') : '—';
+
             if (y > 250) { doc.addPage(); y = 15; }
             doc.setFontSize(11);
             doc.text(`${prod.referencia || '?'} - ${prod.descricao || ''}`.substring(0, 75), 14, y); y += 5;
             doc.setFontSize(9);
-            doc.text(`Qtd: ${i.quantidade || 0}  |  Garantia: ${i.sacGarantia || '—'}  |  Funciona: ${i.funciona || '—'}  |  Método: ${i.sacMetodo || '—'}`, 14, y); y += 5;
-            doc.text(`Solução: ${i.solucao || '—'}  |  Vlr Unit: ${fmt(i.sacValorUnit)}  |  Vlr Total: ${fmt(i.sacValorTotal)}`, 14, y); y += 5;
-            doc.text(`Valor de crédito: ${fmt(i.sacValorCredito)}  |  Data do crédito: ${dataCred}`, 14, y); y += 5;
-            if (i.observacaoSac) { doc.text(`Obs: ${(i.observacaoSac).substring(0, 90)}`, 14, y); y += 5; }
+            doc.text(`Qtd: ${i.quantidade || 0}  |  Funciona: ${i.funciona || '—'}  |  Vlr Unit: ${fmt(i.sacValorUnit)}  |  Vlr Total: ${fmt(i.sacValorTotal)}`, 14, y); y += 5;
+
             y += 2;
             doc.setDrawColor(230); doc.line(14, y, 196, y); y += 6;
         }
@@ -4626,7 +4626,7 @@ const app = (function() {
         if (error) { console.error('Erro ao carregar check-ins:', error.message); return; }
         const { data: itens, error: err2 } = await db.from('dev_itens').select('*').eq('admin_id', state.adminId);
         if (err2) { console.error('Erro ao carregar itens devolução:', err2.message); return; }
-        state.devCheckins = (cks || []).map(c => ({ id: c.id, recebidoPor: c.recebido_por || '', dataRecebimento: c.data_recebimento || '', protocolo: c.protocolo || '', expedicao: c.expedicao || '', cliente: c.cliente || '', qtdVolumes: c.qtd_volumes || 0, observacao: c.observacao || '', status: c.status || 'Pendente', conferente: c.conferente || '' }));
+        state.devCheckins = (cks || []).map(c => ({ id: c.id, recebidoPor: c.recebido_por || '', dataRecebimento: c.data_recebimento || '', protocolo: c.protocolo || '', expedicao: c.expedicao || '', cliente: c.cliente || '', qtdVolumes: c.qtd_volumes || 0, observacao: c.observacao || '', status: c.status || 'Pendente', conferente: c.conferente || '', sacVendedor: c.sac_vendedor || '', sacPdfAprovado: c.sac_pdf_aprovado === true }));
         state.devItens = (itens || []).map(i => ({ id: i.id, checkinId: i.checkin_id, produtoId: i.produto_id, quantidade: i.quantidade, lote: i.lote || '', funciona: i.funciona || '', condicao: i.condicao || '', caixaDescarte: i.caixa_descarte || '', solucao: i.solucao || '', observacaoSac: i.observacao_sac || '', observacao: i.observacao || '', fotoUrl: i.foto_url || '', sacMetodo: i.sac_metodo || '', sacGarantia: i.sac_garantia || '', sacValorUnit: i.sac_valor_unit, sacValorTotal: i.sac_valor_total, sacDataCredito: i.sac_data_credito || '', sacValorCredito: i.sac_valor_credito, sacVendedor: i.sac_vendedor || '', sacFinalizado: i.sac_finalizado === true, sacDataFinalizado: i.sac_data_finalizado || '' }));
         if (typeof renderDevRegistro === 'function') renderDevRegistro();
         if (typeof renderDevSaque === 'function') renderDevSaque();
@@ -4929,6 +4929,11 @@ const app = (function() {
         _saqCheckinAtual = c;
         document.getElementById('dev-saq-protocolo').textContent = c.protocolo || '';
         document.getElementById('dev-saq-info').innerHTML = `<strong>Cliente:</strong> ${escapeWms(c.cliente) || '—'} · <strong>Recebido por:</strong> ${escapeWms(c.recebidoPor)}${c.conferente ? ' · <strong>Devolução:</strong> ' + escapeWms(c.conferente) : ''} · <strong>${escapeWms(c.expedicao) || '—'}</strong>`;
+        const vendCont = document.getElementById('dev-saq-vendedor-cont');
+        if (vendCont) {
+            const opcoesVend = (state.fiscalVendedores || []).map(v => `<option value="${escapeWms(v.nome)}">`).join('');
+            vendCont.innerHTML = `<label style="display:block; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.03em; color:var(--text-sec); margin-bottom:0.2rem;">Vendedor da devolução</label><input type="text" id="dev-saq-vendedor" class="form-control" style="max-width:320px;" list="dev-saq-vend-dl" placeholder="Vendedor" value="${escapeWms(c.sacVendedor)}" onblur="app.salvarVendedorSaque()"><datalist id="dev-saq-vend-dl">${opcoesVend}</datalist>`;
+        }
         renderItensSaque();
         atualizarBotaoPdfSac();
         openDrawer('drawer-dev-saque');
@@ -4970,6 +4975,7 @@ const app = (function() {
                         <div style="font-size:0.85rem; color:var(--text-sec);">Qtd: <strong>${i.quantidade || 0}</strong></div>
                     </div>
                     <div style="display:flex; gap:1.2rem; margin-top:0.5rem; flex-wrap:wrap; font-size:0.82rem;">
+                        <span>Lote: <strong>${escapeWms(i.lote || '—')}</strong></span>
                         <span>Funciona: <strong style="color:${corFunc};">${escapeWms(i.funciona || '—')}</strong></span>
                         <span>Condição: <strong>${escapeWms(i.condicao || '—')}</strong></span>
                         ${i.observacao ? `<span>Obs. registro: <em>${escapeWms(i.observacao)}</em></span>` : ''}
@@ -4983,7 +4989,7 @@ const app = (function() {
                     <div><label style="${lbl}">Valor Total</label><input type="number" id="saq-vt-${i.id}" class="form-control" style="${inp}" step="0.01" placeholder="0,00" value="${i.sacValorTotal != null ? i.sacValorTotal : ''}" onblur="app.salvarSaqueItem('${i.id}')"></div>
                     <div><label style="${lbl}">Data Crédito</label><input type="date" id="saq-dc-${i.id}" class="form-control" style="${inp}" value="${i.sacDataCredito || ''}" onblur="app.salvarSaqueItem('${i.id}')"></div>
                     <div><label style="${lbl}">Valor Crédito</label><input type="number" id="saq-vc-${i.id}" class="form-control" style="${inp}" step="0.01" placeholder="0,00" value="${i.sacValorCredito != null ? i.sacValorCredito : ''}" onblur="app.salvarSaqueItem('${i.id}')"></div>
-                    <div><label style="${lbl}">Vendedor</label><input type="text" id="saq-vend-${i.id}" class="form-control" style="${inp}" list="saq-vend-datalist" placeholder="Vendedor" value="${escapeWms(i.sacVendedor)}" onblur="app.salvarSaqueItem('${i.id}')"></div>
+
                     <div style="grid-column:1/-1;"><label style="${lbl}">Observação SAC</label><input type="text" id="saq-obs-${i.id}" class="form-control" style="${inp}" placeholder="Observação do SAC" value="${escapeWms(i.observacaoSac)}" onblur="app.salvarSaqueItem('${i.id}')"></div>
                 </div>`;
             cont.appendChild(card);
@@ -5005,6 +5011,18 @@ const app = (function() {
         const total = +(unit * (quantidade || 0)).toFixed(2);
         if (vt) vt.value = total;
         if (vc) vc.value = total;
+    }
+
+    async function salvarVendedorSaque() {
+        if (!_saqCheckinAtual) return;
+        const el = document.getElementById('dev-saq-vendedor');
+        if (!el) return;
+        const nome = el.value.trim();
+        const { error } = await db.from('dev_checkins').update({ sac_vendedor: nome }).eq('id', _saqCheckinAtual.id);
+        if (error) { avisar('Erro ao salvar vendedor: ' + error.message); return; }
+        _saqCheckinAtual.sacVendedor = nome;
+        const c = state.devCheckins.find(x => x.id === _saqCheckinAtual.id);
+        if (c) c.sacVendedor = nome;
     }
 
     async function salvarSaqueItem(itemId) {
@@ -7654,7 +7672,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         carregarDevListas, renderDevListas, addDevLista, excluirDevLista,
         carregarDevCheckins, renderDevCheckin, gerarProtocoloCheckin, salvarCheckin, editarItemDevolucao,
         renderDevRegistro, abrirRelatorioDevolucao, onDevCodigoInput, onDevProdutoInput, addItemDevolucao, renderItensRelatorio, removerItemDevolucao, excluirDevolucao,
-        salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, switchSacSubtab, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac,
+        salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac,
         finalizarDevolucaoSaque, renderDevDescarte, exportarDescartePDF, exportarDescarteExcel,
         carregarWmsEnderecos, renderWmsEnderecos, abrirModalWmsEndereco, salvarWmsEndereco, excluirWmsEndereco, verWmsQr, imprimirWmsQr,
         carregarWmsSaldos, renderWmsSaldos, renderWmsTotais, abrirModalWmsSaldo, salvarWmsSaldo, excluirWmsSaldo,
