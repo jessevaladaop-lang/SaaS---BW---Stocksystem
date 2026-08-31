@@ -4114,7 +4114,8 @@ const app = (function() {
             doc.text(`${ref || '?'} - ${desc || ''}`.substring(0, 75), 14, y); y += 5;
             doc.setFontSize(9);
             doc.text(`Qtd: ${i.quantidade || 0}  |  Garantia: ${i.sacGarantia || '—'}  |  Funciona: ${i.funciona || '—'}  |  Vlr Unit: ${fmt(i.sacValorUnit)}  |  Vlr Total: ${fmt(i.sacValorTotal)}`, 14, y); y += 5;
-            if (i.observacaoSac) { doc.text(`Obs: ${(i.observacaoSac).substring(0, 95)}`, 14, y); y += 5; }
+            if (i.observacao) { doc.text(`Obs. registro: ${(i.observacao).substring(0, 90)}`, 14, y); y += 5; }
+            if (i.observacaoSac) { doc.text(`Obs. SAC: ${(i.observacaoSac).substring(0, 90)}`, 14, y); y += 5; }
             y += 2;
             doc.setDrawColor(230); doc.line(14, y, 196, y); y += 6;
         }
