@@ -1065,6 +1065,7 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <button class="wms-subtab" data-subtab="wms-saldos" onclick="app.switchWmsSubtab('wms-saldos')">⚖️ Saldos / Alocação</button>
                 <button class="wms-subtab" data-subtab="wms-separacao" onclick="app.switchWmsSubtab('wms-separacao')">🚚 Separação</button>
                 <button class="wms-subtab" data-subtab="wms-pedidos-qr" onclick="app.switchWmsSubtab('wms-pedidos-qr')">📋 Pedidos QR</button>
+                <button class="wms-subtab" data-subtab="wms-expedicao" onclick="app.switchWmsSubtab('wms-expedicao')">🚀 Expedição</button>
                 <button class="wms-subtab" data-subtab="wms-concluidas" onclick="app.switchWmsSubtab('wms-concluidas')">✅ Concluídas</button>
             </div>
 
@@ -1152,6 +1153,14 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <div id="sep-ped-lista" style="display:flex; flex-direction:column; gap:0.6rem;"></div>
             </div>
 
+            <div id="wms-expedicao" class="wms-subtab-content" style="display:none;">
+                <div class="flex gap-2 flex-wrap" style="margin-bottom:1rem; align-items:center;">
+                    <input type="text" id="sep-exp-busca" class="form-control" placeholder="🔍 Buscar por número, cliente ou vendedor..." style="max-width:320px;" oninput="app.renderExpedicao()">
+                    <span id="sep-exp-count" style="color:var(--text-sec); font-size:0.85rem;"></span>
+                </div>
+                <div id="sep-exp-lista" style="display:flex; flex-direction:column; gap:0.6rem;"></div>
+            </div>
+
             <div id="wms-concluidas" class="wms-subtab-content" style="display:none;">
                 <div class="flex gap-2 flex-wrap" style="margin-bottom:1rem; align-items:center;">
                     <input type="text" id="wms-conc-busca" class="form-control" placeholder="🔍 Buscar por número ou descrição..." style="max-width:320px;" oninput="app.renderWmsConcluidas()">
@@ -1160,6 +1169,42 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <div id="wms-conc-lista" style="display:flex; flex-direction:column; gap:0.6rem;"></div>
             </div>
         </section>
+
+        <div class="drawer dev-fullscreen" id="drawer-sep-expedicao">
+            <div class="drawer-header">
+                <h2>🚀 Expedir: <span id="sep-exp-numero"></span></h2>
+                <button class="btn-icon" onclick="app.pararScannerExp(); app.closeAllDrawers()" title="Fechar">✕</button>
+            </div>
+            <div class="drawer-body">
+                <div id="sep-exp-info" style="background:var(--hover-bg); border-radius:8px; padding:0.8rem 1rem; margin-bottom:1rem; font-size:0.9rem;"></div>
+                <div id="sep-exp-ped-status" style="padding:0.6rem 0.8rem; border-radius:6px; margin-bottom:0.8rem; font-size:0.9rem;"></div>
+                <div id="sep-exp-reader" style="margin-bottom:1rem;"></div>
+                <div id="sep-exp-caixas-area" style="display:none;">
+                    <label style="font-weight:600; font-size:0.9rem;">Conferência de volumes (caixa por caixa)</label>
+                    <div id="sep-exp-tally" style="border:1px solid var(--border); border-radius:8px; margin:0.5rem 0; overflow:hidden;"></div>
+                    <label style="font-weight:600; font-size:0.85rem; color:var(--text-sec);">Leituras</label>
+                    <div id="sep-exp-log" style="max-height:200px; overflow-y:auto; margin-top:0.4rem;"></div>
+                </div>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn btn-secondary" onclick="app.pararScannerExp(); app.closeAllDrawers()">Fechar</button>
+                <button class="btn btn-primary" id="sep-exp-btn-confirmar" onclick="app.confirmarExpedicao()" disabled>✅ Confirmar Expedição</button>
+            </div>
+        </div>
+
+        <div class="drawer" id="drawer-ped-qr">
+            <div class="drawer-header">
+                <h2>📱 QR do pedido <span id="ped-qr-titulo"></span></h2>
+                <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
+            </div>
+            <div class="drawer-body" style="text-align:center;">
+                <p style="color:var(--text-sec); font-size:0.85rem; margin-bottom:1rem;">Cole este QR no pedido/volume. Ele será escaneado na expedição.</p>
+                <div id="ped-qr-canvas" style="display:flex; justify-content:center;"></div>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
+            </div>
+        </div>
 
         <!-- MODAL: Separar Pedido (mobile, tela cheia) -->
         <div class="drawer wms-fullscreen-mobile" id="drawer-sep-separar">
@@ -1213,7 +1258,7 @@ body.monitor-mode .queue-card button { display: none !important; }
         </div>
 
         <!-- MODAL: Novo/Editar Pedido QR -->
-        <div class="drawer" id="drawer-sep-pedido">
+        <div class="drawer dev-fullscreen" id="drawer-sep-pedido">
             <div class="drawer-header">
                 <h2 id="sep-ped-modal-titulo">Novo Pedido</h2>
                 <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
@@ -1227,11 +1272,14 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <hr style="border:none; border-top:1px solid var(--border); margin:1rem 0;">
                 <label style="font-weight:600; font-size:0.9rem;">Produtos do pedido</label>
                 <p style="color:var(--text-sec); font-size:0.82rem; margin:0.2rem 0 0.6rem 0;">Puxados da Base de Produtos (aba Registro).</p>
-                <input type="text" id="sep-ped-item-busca" class="form-control" placeholder="🔍 Filtrar produto por código ou descrição..." style="margin-bottom:0.5rem;" oninput="app.filtrarProdutosSepPedido()">
+                <div style="position:relative; margin-bottom:0.5rem;">
+                    <input type="text" id="sep-ped-item-busca" class="form-control" placeholder="🔍 Digite código ou descrição do produto..." autocomplete="off" oninput="app.filtrarProdutosSepPedido()">
+                    <input type="hidden" id="sep-ped-item-prod">
+                    <div id="sep-ped-item-results" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:50; background:var(--card-bg,#1a1a1a); border:1px solid var(--border); border-radius:6px; max-height:260px; overflow-y:auto; box-shadow:0 6px 20px rgba(0,0,0,0.35);"></div>
+                </div>
                 <div class="flex gap-2" style="align-items:flex-end; flex-wrap:wrap;">
-                    <div style="flex:1; min-width:160px;"><small style="color:var(--text-sec);">Produto</small><select id="sep-ped-item-prod" class="form-control"></select></div>
-                    <div style="width:100px;"><small style="color:var(--text-sec);">Peças</small><input type="number" id="sep-ped-item-qtd" class="form-control" min="1" placeholder="0"></div>
-                    <button type="button" class="btn btn-secondary" onclick="app.addItemSepTemp()" style="padding:0.5rem 0.8rem;">+</button>
+                    <div style="width:110px;"><small style="color:var(--text-sec);">Peças</small><input type="number" id="sep-ped-item-qtd" class="form-control" min="1" placeholder="0"></div>
+                    <button type="button" class="btn btn-secondary" onclick="app.addItemSepTemp()" style="padding:0.5rem 0.9rem;">Adicionar</button>
                 </div>
                 <small id="sep-ped-item-count" style="color:var(--text-sec); font-size:0.78rem;"></small>
                 <ul id="sep-ped-itens-temp" style="list-style:none; padding:0; margin:0.5rem 0; display:flex; flex-direction:column; gap:0.3rem;"></ul>
@@ -1325,7 +1373,7 @@ body.monitor-mode .queue-card button { display: none !important; }
         </div>
 
         <!-- MODAL: Nova/Editar Ordem de Separação -->
-        <div class="drawer" id="drawer-wms-ordem">
+        <div class="drawer dev-fullscreen" id="drawer-wms-ordem">
             <div class="drawer-header">
                 <h2 id="wms-ord-modal-titulo">Nova Ordem</h2>
                 <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
@@ -1336,11 +1384,16 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <div class="form-group"><label>Descrição / Referência</label><input type="text" id="wms-ord-desc" class="form-control" placeholder="Cliente, observação..."></div>
                 <hr style="border-color:var(--border); margin:1rem 0;">
                 <label style="font-weight:600;">Itens da ordem</label>
-                <div class="flex gap-1" style="margin:0.5rem 0; align-items:flex-end;">
-                    <div style="flex:1;"><small style="color:var(--text-sec);">Produto</small><select id="wms-ord-item-prod" class="form-control"></select></div>
-                    <div style="width:100px;"><small style="color:var(--text-sec);">Peças</small><input type="number" id="wms-ord-item-qtd" class="form-control" min="1" placeholder="0"></div>
-                    <button type="button" class="btn btn-secondary" onclick="app.addItemOrdemTemp()" style="padding:0.5rem 0.8rem;">+</button>
+                <div style="position:relative; margin:0.5rem 0;">
+                    <input type="text" id="wms-ord-item-busca" class="form-control" placeholder="🔍 Digite código ou descrição do produto..." autocomplete="off" oninput="app.filtrarProdutosOrdem()">
+                    <input type="hidden" id="wms-ord-item-prod">
+                    <div id="wms-ord-item-results" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:50; background:var(--card-bg,#1a1a1a); border:1px solid var(--border); border-radius:6px; max-height:260px; overflow-y:auto; box-shadow:0 6px 20px rgba(0,0,0,0.35);"></div>
                 </div>
+                <div class="flex gap-1" style="margin:0.5rem 0; align-items:flex-end;">
+                    <div style="width:110px;"><small style="color:var(--text-sec);">Peças</small><input type="number" id="wms-ord-item-qtd" class="form-control" min="1" placeholder="0"></div>
+                    <button type="button" class="btn btn-secondary" onclick="app.addItemOrdemTemp()" style="padding:0.5rem 0.9rem;">Adicionar</button>
+                </div>
+                <small id="wms-ord-item-count" style="color:var(--text-sec); font-size:0.78rem;"></small>
                 <ul id="wms-ord-itens-temp" style="list-style:none; padding:0; margin:0.5rem 0; display:flex; flex-direction:column; gap:0.3rem;"></ul>
             </div>
             <div class="drawer-footer">
@@ -3162,6 +3215,180 @@ const app = (function() {
     function switchConfigTab(aba, el) { document.querySelectorAll('.cfg-tab-content').forEach(c => c.style.display = 'none'); const alvo = document.getElementById(`cfg-tab-${aba}`); if (alvo) alvo.style.display = 'block'; document.querySelectorAll('#config-module .tab').forEach(t => t.classList.remove('active')); if (el) el.classList.add('active'); }
 
     // --- WMS: troca de sub-aba (Produtos / Endereços / Saldos) ---
+    // ================= EXPEDIÇÃO =================
+    let _expPedidoAtual = null;
+    let _expEsperado = {};
+    let _expScan = {};
+    let _expPedConfirmado = false;
+    let _scannerExpInstance = null;
+    let _expUltimaLeitura = 0;
+
+    function pecasPorCaixaDe(item) {
+        const p = (state.wmsProdutos || []).find(x => x.id === item.produtoId) || (state.wmsProdutos || []).find(x => (x.sku || '') === item.referencia);
+        const ppc = p ? (p.pecasPorCaixa || 1) : 1;
+        return ppc > 0 ? ppc : 1;
+    }
+
+    function renderExpedicao() {
+        const cont = document.getElementById('sep-exp-lista');
+        if (!cont) return;
+        const busca = (document.getElementById('sep-exp-busca') ? document.getElementById('sep-exp-busca').value : '').toLowerCase().trim();
+        let lista = (state.sepPedidos || []).filter(p => p.status === 'Concluído' || p.status === 'Expedido');
+        if (busca) lista = lista.filter(p => (p.numero + ' ' + p.cliente + ' ' + p.vendedor).toLowerCase().includes(busca));
+        const countEl = document.getElementById('sep-exp-count');
+        if (countEl) countEl.textContent = `${lista.length} pedido(s)`;
+        cont.innerHTML = '';
+        if (lista.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec);">Nenhum pedido para expedir.</p>'; return; }
+        lista.forEach(p => {
+            const itens = (state.sepItens || []).filter(i => i.pedidoId === p.id);
+            const totalCaixas = itens.reduce((sm, i) => sm + Math.round((i.qtdSeparada || 0) / pecasPorCaixaDe(i)), 0);
+            const expedido = p.status === 'Expedido';
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.style.cssText = `display:flex; justify-content:space-between; align-items:center; padding:0.8rem 1rem; flex-wrap:wrap; gap:0.5rem; ${expedido ? 'border-color:var(--success,#28a745);' : ''}`;
+            card.innerHTML = `<div><div style="font-weight:700; font-size:1.05rem;">${escapeWms(p.numero)}</div><div style="color:var(--text-sec); font-size:0.88rem;">${escapeWms(p.cliente) || 'Sem cliente'}${p.vendedor ? ' · Vend: ' + escapeWms(p.vendedor) : ''}</div><div style="font-size:0.82rem; margin-top:0.3rem;">${itens.length} produto(s) · ${totalCaixas} caixa(s)${p.separador ? ' · Separador: ' + escapeWms(p.separador) : ''}</div></div><div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;"><span style="font-size:0.8rem; font-weight:600; color:${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; border:1px solid ${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; padding:0.2rem 0.6rem; border-radius:12px;">${expedido ? '✅ Expedido' : 'A expedir'}</span><button class="btn btn-secondary" style="padding:0.4rem 0.8rem;" onclick="app.verQrPedido('${p.id}')">📱 QR do pedido</button>${expedido ? '' : `<button class="btn btn-primary req-estoque-edit" style="padding:0.4rem 0.8rem;" onclick="app.abrirExpedicao('${p.id}')">🚀 Expedir</button>`}</div>`;
+            cont.appendChild(card);
+        });
+    }
+
+    function verQrPedido(pedidoId) {
+        const p = (state.sepPedidos || []).find(x => x.id === pedidoId);
+        if (!p) return;
+        document.getElementById('ped-qr-titulo').textContent = p.numero;
+        const cont = document.getElementById('ped-qr-canvas');
+        cont.innerHTML = '';
+        if (typeof QRCode === 'undefined') { cont.innerHTML = '<p style="color:var(--danger);">Biblioteca de QR não carregada.</p>'; }
+        else new QRCode(cont, { text: 'BW-PED:' + p.id, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.H });
+        openDrawer('drawer-ped-qr');
+    }
+
+    function abrirExpedicao(pedidoId) {
+        const p = (state.sepPedidos || []).find(x => x.id === pedidoId);
+        if (!p) return;
+        _expPedidoAtual = p;
+        _expPedConfirmado = false;
+        _expEsperado = {};
+        _expScan = {};
+        (state.sepItens || []).filter(i => i.pedidoId === p.id).forEach(i => {
+            const cx = Math.round((i.qtdSeparada || 0) / pecasPorCaixaDe(i));
+            _expEsperado[i.referencia] = (_expEsperado[i.referencia] || 0) + cx;
+            _expScan[i.referencia] = 0;
+        });
+        document.getElementById('sep-exp-numero').textContent = p.numero;
+        document.getElementById('sep-exp-info').innerHTML = `<strong>Cliente:</strong> ${escapeWms(p.cliente) || '—'}${p.vendedor ? ' · <strong>Vend:</strong> ' + escapeWms(p.vendedor) : ''}`;
+        const stPed = document.getElementById('sep-exp-ped-status');
+        stPed.innerHTML = '🔒 Escaneie o QR do pedido para começar.';
+        stPed.style.background = 'var(--hover-bg)';
+        document.getElementById('sep-exp-caixas-area').style.display = 'none';
+        const log = document.getElementById('sep-exp-log'); if (log) log.innerHTML = '';
+        document.getElementById('sep-exp-btn-confirmar').disabled = true;
+        renderExpTally();
+        openDrawer('drawer-sep-expedicao');
+        iniciarScannerExpPedido();
+    }
+
+    function iniciarScannerExpPedido() {
+        if (!_expPedidoAtual) return;
+        if (typeof Html5Qrcode === 'undefined') { avisar('Biblioteca de leitura de QR não carregada. Recarregue a página.'); return; }
+        pararScannerExp();
+        const readerEl = document.getElementById('sep-exp-reader');
+        readerEl.innerHTML = '<div id="sep-exp-reader-inner" style="width:100%;"></div>';
+        _scannerExpInstance = new Html5Qrcode('sep-exp-reader-inner');
+        const esperado = 'BW-PED:' + _expPedidoAtual.id;
+        _scannerExpInstance.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            (decodedText) => {
+                const lido = (decodedText || '').trim();
+                const st = document.getElementById('sep-exp-ped-status');
+                if (lido === esperado) {
+                    _expPedConfirmado = true;
+                    st.innerHTML = `✅ Pedido <strong>${escapeWms(_expPedidoAtual.numero)}</strong> confirmado! Agora escaneie as caixas.`;
+                    st.style.background = 'rgba(34,197,94,0.15)';
+                    pararScannerExp();
+                    document.getElementById('sep-exp-caixas-area').style.display = 'block';
+                    iniciarScannerExpCaixa();
+                } else {
+                    st.innerHTML = `❌ Esse QR não é do pedido <strong>${escapeWms(_expPedidoAtual.numero)}</strong>.`;
+                    st.style.background = 'rgba(239,68,68,0.15)';
+                    if (typeof tocarAlerta === 'function') tocarAlerta(3);
+                }
+            },
+            () => {}
+        ).catch(err => { avisar('Não foi possível acessar a câmera: ' + err); readerEl.innerHTML = ''; });
+    }
+
+    function iniciarScannerExpCaixa() {
+        if (typeof Html5Qrcode === 'undefined') return;
+        pararScannerExp();
+        const readerEl = document.getElementById('sep-exp-reader');
+        readerEl.innerHTML = '<div id="sep-exp-reader-inner" style="width:100%;"></div>';
+        _scannerExpInstance = new Html5Qrcode('sep-exp-reader-inner');
+        _scannerExpInstance.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            (decodedText) => { processarCaixaExp((decodedText || '').trim()); },
+            () => {}
+        ).catch(err => { avisar('Não foi possível acessar a câmera: ' + err); readerEl.innerHTML = ''; });
+    }
+
+    function processarCaixaExp(lido) {
+        const agora = Date.now();
+        if (agora - _expUltimaLeitura < 1200) return;
+        _expUltimaLeitura = agora;
+        const log = document.getElementById('sep-exp-log');
+        const addLog = (html, cor) => { if (log) { const d = document.createElement('div'); d.style.cssText = `padding:0.35rem 0.6rem; border-radius:4px; margin-bottom:0.3rem; font-size:0.85rem; background:${cor};`; d.innerHTML = html; log.prepend(d); } };
+        if (!lido.startsWith('BW-PROD:')) { addLog(`❌ QR inválido: <strong>${escapeWms(lido)}</strong>`, 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
+        const ref = lido.substring(8);
+        if (!(ref in _expEsperado)) { addLog(`❌ A caixa do produto <strong>${escapeWms(ref)}</strong> NÃO é deste pedido.`, 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
+        if ((_expScan[ref] || 0) + 1 > _expEsperado[ref]) { addLog(`⚠️ Caixa A MAIS de <strong>${escapeWms(ref)}</strong> — o pedido só tem ${_expEsperado[ref]} caixa(s).`, 'rgba(245,158,11,0.18)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); renderExpTally(); return; }
+        _expScan[ref] = (_expScan[ref] || 0) + 1;
+        addLog(`✅ Caixa de <strong>${escapeWms(ref)}</strong> (${_expScan[ref]}/${_expEsperado[ref]})`, 'rgba(34,197,94,0.15)');
+        if (typeof tocarAlerta === 'function') tocarAlerta(1);
+        renderExpTally();
+    }
+
+    function renderExpTally() {
+        const cont = document.getElementById('sep-exp-tally');
+        if (!cont) return;
+        const refs = Object.keys(_expEsperado);
+        let tudoOk = refs.length > 0;
+        cont.innerHTML = refs.map(ref => {
+            const esp = _expEsperado[ref], sc = _expScan[ref] || 0;
+            const ok = sc === esp;
+            if (!ok) tudoOk = false;
+            const cor = sc === esp ? 'var(--success,#28a745)' : (sc > esp ? 'var(--danger,#f85149)' : 'var(--text-sec)');
+            return `<div style="display:flex; justify-content:space-between; padding:0.35rem 0.6rem; border-bottom:1px solid var(--border); font-size:0.88rem;"><span>${escapeWms(ref)}</span><strong style="color:${cor};">${sc}/${esp} cx ${ok ? '✅' : ''}</strong></div>`;
+        }).join('');
+        const btn = document.getElementById('sep-exp-btn-confirmar');
+        if (btn) btn.disabled = !(_expPedConfirmado && tudoOk);
+    }
+
+    async function confirmarExpedicao() {
+        if (!_expPedidoAtual) return;
+        if (!_expPedConfirmado) { avisar('Escaneie o QR do pedido primeiro.'); return; }
+        const refs = Object.keys(_expEsperado);
+        const faltando = refs.filter(r => (_expScan[r] || 0) < _expEsperado[r]);
+        const sobrando = refs.filter(r => (_expScan[r] || 0) > _expEsperado[r]);
+        if (sobrando.length > 0) { avisar('Há caixas a mais escaneadas. Corrija antes de confirmar.'); return; }
+        if (faltando.length > 0) { avisar('Faltam caixas: ' + faltando.map(r => `${r} (${_expScan[r] || 0}/${_expEsperado[r]})`).join(', ')); return; }
+        const ok = await confirmar(`Confirmar expedição do pedido ${_expPedidoAtual.numero}? Todas as caixas conferem.`);
+        if (!ok) return;
+        const { error } = await db.from('sep_pedidos').update({ status: 'Expedido' }).eq('id', _expPedidoAtual.id).eq('admin_id', state.adminId);
+        if (error) { avisar('Erro ao confirmar expedição: ' + error.message); return; }
+        pararScannerExp();
+        avisar('Pedido expedido com sucesso! ✅');
+        closeAllDrawers();
+        await carregarSepPedidos();
+        renderExpedicao();
+    }
+
+    function pararScannerExp() {
+        if (_scannerExpInstance) { try { _scannerExpInstance.clear(); } catch (e) {} _scannerExpInstance = null; }
+        const reader = document.getElementById('sep-exp-reader');
+        if (reader) reader.innerHTML = '';
+    }
+
     function switchWmsSubtab(subtab) {
         document.querySelectorAll('.wms-subtab-content').forEach(c => c.style.display = 'none');
         const alvo = document.getElementById(subtab);
@@ -3174,6 +3401,7 @@ const app = (function() {
         if (subtab === 'wms-saldos' && typeof renderWmsSaldos === 'function') renderWmsSaldos();
         if (subtab === 'wms-separacao' && typeof renderWmsSeparacao === 'function') renderWmsSeparacao();
         if (subtab === 'wms-pedidos-qr' && typeof carregarSepPedidos === 'function') carregarSepPedidos();
+        if (subtab === 'wms-expedicao' && typeof renderExpedicao === 'function') { if (typeof carregarSepPedidos === 'function') carregarSepPedidos(); else renderExpedicao(); }
     }
 
     // --- DEVOLUÇÃO: troca de sub-aba ---
@@ -4312,7 +4540,7 @@ const app = (function() {
         if (!cont) return;
         const busca = (document.getElementById('sep-ped-busca') ? document.getElementById('sep-ped-busca').value : '').toLowerCase().trim();
         const fStatus = document.getElementById('sep-ped-filtro-status') ? document.getElementById('sep-ped-filtro-status').value : '';
-        let lista = state.sepPedidos || [];
+        let lista = (state.sepPedidos || []).filter(p => p.status !== 'Concluído' && p.status !== 'Expedido');
         if (busca) lista = lista.filter(p => (p.numero + ' ' + p.cliente + ' ' + p.vendedor).toLowerCase().includes(busca));
         if (fStatus) lista = lista.filter(p => p.status === fStatus);
         const countEl = document.getElementById('sep-ped-count');
@@ -4336,9 +4564,7 @@ const app = (function() {
         _sepItensTemp = [];
         if (typeof atualizarDatalistClientes === 'function') { const dl = document.getElementById('sep-cli-datalist'); if (dl && state.fiscalClientes) dl.innerHTML = state.fiscalClientes.map(c => `<option value="${escapeWms(c.razaoSocial)}">`).join(''); }
         if (state.fiscalVendedores) { const dv = document.getElementById('sep-vend-datalist'); if (dv) dv.innerHTML = state.fiscalVendedores.map(v => `<option value="${escapeWms(v.nome)}">`).join(''); }
-        const buscaEl = document.getElementById('sep-ped-item-busca');
-        if (buscaEl) buscaEl.value = '';
-        filtrarProdutosSepPedido();
+
         document.getElementById('sep-ped-id').value = id || '';
         document.getElementById('sep-ped-item-qtd').value = '';
         if (id) {
@@ -4374,19 +4600,24 @@ const app = (function() {
     }
 
     function filtrarProdutosSepPedido() {
-        const sel = document.getElementById('sep-ped-item-prod');
-        if (!sel) return;
+        const box = document.getElementById('sep-ped-item-results');
+        if (!box) return;
         const busca = (document.getElementById('sep-ped-item-busca') ? document.getElementById('sep-ped-item-busca').value : '').toLowerCase().trim();
-        let lista = state.devProdutos || [];
-        if (busca) lista = lista.filter(p => (p.referencia || '').toLowerCase().includes(busca) || (p.descricao || '').toLowerCase().includes(busca));
-        const LIMITE = 300;
-        const cortada = lista.slice(0, LIMITE);
-        sel.innerHTML = '<option value="">-- Produto --</option>' + cortada.map(p => `<option value="${p.id}">${escapeWms(p.referencia)} — ${escapeWms(p.descricao)}</option>`).join('');
         const cnt = document.getElementById('sep-ped-item-count');
-        if (cnt) {
-            if (!busca && lista.length > LIMITE) cnt.textContent = `Mostrando ${LIMITE} de ${lista.length}. Digite acima para filtrar.`;
-            else cnt.textContent = `${lista.length} produto(s)`;
-        }
+        if (!busca) { box.style.display = 'none'; box.innerHTML = ''; if (cnt) cnt.textContent = ''; return; }
+        const lista = (state.devProdutos || []).filter(p => (p.referencia || '').toLowerCase().includes(busca) || (p.descricao || '').toLowerCase().includes(busca));
+        if (cnt) cnt.textContent = `${lista.length} produto(s)`;
+        box.innerHTML = lista.slice(0, 50).map(p => `<div style="padding:0.5rem 0.7rem; cursor:pointer; border-bottom:1px solid var(--border); font-size:0.9rem;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='transparent'" onmousedown="app.selecionarProdutoSep('${p.id}')"><strong>${escapeWms(p.referencia)}</strong> — ${escapeWms(p.descricao)}</div>`).join('') || '<div style="padding:0.6rem 0.7rem; color:var(--text-sec); font-size:0.85rem;">Nenhum produto encontrado.</div>';
+        box.style.display = 'block';
+    }
+
+    function selecionarProdutoSep(id) {
+        const p = (state.devProdutos || []).find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('sep-ped-item-prod').value = id;
+        document.getElementById('sep-ped-item-busca').value = `${p.referencia} — ${p.descricao}`;
+        const box = document.getElementById('sep-ped-item-results');
+        if (box) { box.style.display = 'none'; box.innerHTML = ''; }
     }
 
     function addItemSepTemp() {
@@ -4399,6 +4630,9 @@ const app = (function() {
         if (!prod) { avisar('Produto não encontrado na base.'); return; }
         _sepItensTemp.push({ produtoId: prodId, referencia: prod.referencia, descricao: prod.descricao, qtd: qtd });
         document.getElementById('sep-ped-item-prod').value = '';
+        const bqSep = document.getElementById('sep-ped-item-busca'); if (bqSep) bqSep.value = '';
+        const rbSep = document.getElementById('sep-ped-item-results'); if (rbSep) { rbSep.style.display = 'none'; rbSep.innerHTML = ''; }
+        const csSep = document.getElementById('sep-ped-item-count'); if (csSep) csSep.textContent = '';
         document.getElementById('sep-ped-item-qtd').value = '';
         renderSepItensTemp();
     }
@@ -7719,8 +7953,11 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
     }
 
     function abrirModalWmsOrdem(id = null) {
-        const selProd = document.getElementById('wms-ord-item-prod');
-        selProd.innerHTML = '<option value="">-- Produto --</option>' + (state.wmsProdutos || []).map(p => `<option value="${p.id}">${escapeWms(p.sku)} — ${escapeWms(p.descricao)}</option>`).join('');
+        const buscaOrd = document.getElementById('wms-ord-item-busca');
+        if (buscaOrd) buscaOrd.value = '';
+        const hpOrd = document.getElementById('wms-ord-item-prod'); if (hpOrd) hpOrd.value = '';
+        const rrOrd = document.getElementById('wms-ord-item-results'); if (rrOrd) { rrOrd.style.display = 'none'; rrOrd.innerHTML = ''; }
+        const ccOrd = document.getElementById('wms-ord-item-count'); if (ccOrd) ccOrd.textContent = '';
         document.getElementById('wms-ord-id').value = id || '';
         document.getElementById('wms-ord-item-qtd').value = '';
         if (id) {
@@ -7755,6 +7992,27 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         });
     }
 
+    function filtrarProdutosOrdem() {
+        const box = document.getElementById('wms-ord-item-results');
+        if (!box) return;
+        const busca = (document.getElementById('wms-ord-item-busca') ? document.getElementById('wms-ord-item-busca').value : '').toLowerCase().trim();
+        const cnt = document.getElementById('wms-ord-item-count');
+        if (!busca) { box.style.display = 'none'; box.innerHTML = ''; if (cnt) cnt.textContent = ''; return; }
+        const lista = (state.wmsProdutos || []).filter(p => (p.sku || '').toLowerCase().includes(busca) || (p.descricao || '').toLowerCase().includes(busca));
+        if (cnt) cnt.textContent = `${lista.length} produto(s)`;
+        box.innerHTML = lista.slice(0, 50).map(p => `<div style="padding:0.5rem 0.7rem; cursor:pointer; border-bottom:1px solid var(--border); font-size:0.9rem;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='transparent'" onmousedown="app.selecionarProdutoOrdem('${p.id}')"><strong>${escapeWms(p.sku)}</strong> — ${escapeWms(p.descricao)}</div>`).join('') || '<div style="padding:0.6rem 0.7rem; color:var(--text-sec); font-size:0.85rem;">Nenhum produto encontrado.</div>';
+        box.style.display = 'block';
+    }
+
+    function selecionarProdutoOrdem(id) {
+        const p = (state.wmsProdutos || []).find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('wms-ord-item-prod').value = id;
+        document.getElementById('wms-ord-item-busca').value = `${p.sku} — ${p.descricao}`;
+        const box = document.getElementById('wms-ord-item-results');
+        if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+    }
+
     function addItemOrdemTemp() {
         const prodId = document.getElementById('wms-ord-item-prod').value;
         const qtd = parseInt(document.getElementById('wms-ord-item-qtd').value);
@@ -7763,6 +8021,9 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         if (_ordemItensTemp.some(it => it.produtoId === prodId)) { avisar('Esse produto já está na ordem.'); return; }
         _ordemItensTemp.push({ produtoId: prodId, qtd: qtd });
         document.getElementById('wms-ord-item-prod').value = '';
+        const bqOrd = document.getElementById('wms-ord-item-busca'); if (bqOrd) bqOrd.value = '';
+        const rbOrd = document.getElementById('wms-ord-item-results'); if (rbOrd) { rbOrd.style.display = 'none'; rbOrd.innerHTML = ''; }
+        const csOrd = document.getElementById('wms-ord-item-count'); if (csOrd) csOrd.textContent = '';
         document.getElementById('wms-ord-item-qtd').value = '';
         renderItensTemp();
     }
@@ -8097,7 +8358,8 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         adicionarResponsavel, excluirResponsavel, adicionarAtendenteExp, excluirAtendenteExp, renderAtendentesExp,
         switchWmsSubtab, carregarWmsProdutos, renderWmsProdutos, abrirModalWmsProduto, salvarWmsProduto, excluirWmsProduto,
         switchDevSubtab, carregarDevProdutos, renderDevBase, importarDevProdutos, abrirModalDevProduto, salvarDevProduto, excluirDevProduto, verDevQr, imprimirDevQr,
-        carregarSepPedidos, renderSepPedidos, abrirModalSepPedido, filtrarProdutosSepPedido, addItemSepTemp, removerItemSepTemp, salvarSepPedido, excluirSepPedido,
+        carregarSepPedidos, renderSepPedidos, abrirModalSepPedido, filtrarProdutosSepPedido, selecionarProdutoSep, addItemSepTemp, removerItemSepTemp, salvarSepPedido, excluirSepPedido,
+        renderExpedicao, verQrPedido, abrirExpedicao, confirmarExpedicao, pararScannerExp,
         abrirSeparacaoSep, renderItensSeparacaoSep, abrirConfirmarItemSep, iniciarScannerSep, confirmarItemSep, fecharSepConfirmar, fecharSepSeparacao,
         switchImpSubtab, carregarImpAnalise, importarSaldo, importarSaida, importarSaidaAnt, importarArquivoImp, limparImpAnalise, renderImpAnalise, renderImpDados, exportarImpExcel, renderImpComparativo,
         switchRegSubtab, carregarFiscalClientes, carregarFiscalVendedores, renderClientes, renderVendedores, importarClientesArquivo, importarVendedoresArquivo, abrirModalCliente, salvarCliente, excluirCliente, abrirModalVendedor, salvarVendedor, excluirVendedor,
@@ -8109,7 +8371,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         finalizarDevolucaoSaque, renderDevDescarte, exportarDescartePDF, exportarDescarteExcel,
         carregarWmsEnderecos, renderWmsEnderecos, abrirModalWmsEndereco, salvarWmsEndereco, excluirWmsEndereco, verWmsQr, imprimirWmsQr,
         carregarWmsSaldos, renderWmsSaldos, renderWmsTotais, abrirModalWmsSaldo, salvarWmsSaldo, excluirWmsSaldo,
-        carregarWmsOrdens, renderWmsSeparacao, abrirModalWmsOrdem, addItemOrdemTemp, removerItemTemp, salvarWmsOrdem, excluirWmsOrdem, abrirSeparacaoOrdem,
+        carregarWmsOrdens, renderWmsSeparacao, abrirModalWmsOrdem, filtrarProdutosOrdem, selecionarProdutoOrdem, addItemOrdemTemp, removerItemTemp, salvarWmsOrdem, excluirWmsOrdem, abrirSeparacaoOrdem,
         renderItensSeparacao, abrirBaixaItem, onEnderecoBaixaChange, iniciarScanner, fecharBaixa, fecharSeparacao, confirmarBaixa, imprimirRomaneio,
         autoDataOperacional, toggleCampoOperacional, salvarNomeAdmin, tocarAlerta, salvarTempoLimite, renderCamposFinanceiroSelects, salvarCamposFinanceiro, switchFinanceiroTab, renderProdutividade, abrirModalMetas, fecharModalMetas, dividirMetasEquipe, salvarMetas,
         renderAuditoria, popularSelectAuditoria, switchConfigTab, renderFinanceiroHistorico, limparFiltrosHistorico, renderFinanceiroDashboard, limparFiltrosDashboard, renderFinanceiroTabelas, renderFinanceiroAtrasadas, limparFiltrosAtrasadas, carregarNFsAtrasadas, renderFinanceiroEmail, limparFiltrosEmail, mudarModoGrafico, renderGraficoProdutividade,
