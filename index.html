@@ -119,6 +119,8 @@ body[data-perm-fiscal-ver="false"] #nav-fiscal { display: none !important; }
 body[data-perm-fiscal-edit="false"] .req-fiscal-edit { display: none !important; pointer-events: none; }
 body[data-perm-sac-ver="false"] #nav-sac { display: none !important; }
 body[data-perm-sac-edit="false"] .req-sac-edit { display: none !important; pointer-events: none; }
+body[data-perm-analise-sac-ver="false"] #nav-analise-sac { display: none !important; }
+body[data-perm-analise-sac-edit="false"] .req-analise-sac-edit { display: none !important; pointer-events: none; }
 
 /* Barra de abas internas */
 #tabbar { display:flex; align-items:center; gap:2px; background:var(--bg-main); border-bottom:1px solid var(--border); padding:0.3rem 0.5rem 0 0.5rem; overflow-x:auto; min-height:38px; }
@@ -374,6 +376,9 @@ body.monitor-mode .queue-card button { display: none !important; }
 .dev-subtab { background: none; border: none; color: var(--text-sec); padding: 0.6rem 1rem; cursor: pointer; font-size: 0.95rem; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
 .dev-subtab:hover { color: var(--text-main); }
 .dev-subtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.as-subtab { background: none; border: none; color: var(--text-sec); padding: 0.6rem 1rem; cursor: pointer; font-size: 0.95rem; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+.as-subtab:hover { color: var(--text-main); }
+.as-subtab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .reg-subtab { background: none; border: none; color: var(--text-sec); padding: 0.6rem 1rem; cursor: pointer; font-size: 0.95rem; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
 .reg-subtab:hover { color: var(--text-main); }
 .reg-subtab.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -488,6 +493,10 @@ body.monitor-mode .queue-card button { display: none !important; }
             <li class="nav-item" id="nav-sac" data-target="sac-module">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 SAC
+            </li>
+            <li class="nav-item" id="nav-analise-sac" data-target="analise-sac-module">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                Análise do SAC
             </li>
             <li class="nav-item" id="nav-registro" data-target="registro-module">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
@@ -1468,20 +1477,43 @@ body.monitor-mode .queue-card button { display: none !important; }
 
 
             <div id="dev-descarte" class="dev-subtab-content" style="display:none;">
-                <div class="flex gap-2 flex-wrap" style="margin-bottom:1rem; align-items:center;">
-                    <input type="text" id="dev-desc-busca" class="form-control" placeholder="🔍 Buscar por produto, lote ou caixa..." style="max-width:320px;" oninput="app.renderDevDescarte()">
-                    <select id="dev-desc-lote" class="form-control" style="width:auto;" onchange="app.renderDevDescarte()">
-                        <option value="">Todos os lotes</option>
-                    </select>
-                    <input type="date" id="dev-desc-data-ini" class="form-control" style="width:auto;" title="Data inicial" onchange="app.renderDevDescarte()">
-                    <input type="date" id="dev-desc-data-fim" class="form-control" style="width:auto;" title="Data final" onchange="app.renderDevDescarte()">
-                    <select id="dev-desc-view" class="form-control" style="width:auto;" onchange="app.renderDevDescarte()">
-                        <option value="lote">Agrupar por lote</option>
-                        <option value="item">Listar por item</option>
-                    </select>
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:flex-end; margin-bottom:0.8rem;">
+                    <div style="flex:2 1 260px; min-width:220px;">
+                        <small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Buscar</small>
+                        <input type="text" id="dev-desc-busca" class="form-control" style="width:100%;" placeholder="🔍 Produto, código, lote, caixa ou cliente..." oninput="app.renderDevDescarte()">
+                    </div>
+                    <div style="flex:1 1 190px; min-width:170px;">
+                        <small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Cliente</small>
+                        <select id="dev-desc-cliente" class="form-control" style="width:100%;" onchange="app.renderDevDescarte()">
+                            <option value="">Todos os clientes</option>
+                        </select>
+                    </div>
+                    <div style="flex:1 1 150px; min-width:140px;">
+                        <small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Lote</small>
+                        <select id="dev-desc-lote" class="form-control" style="width:100%;" onchange="app.renderDevDescarte()">
+                            <option value="">Todos os lotes</option>
+                        </select>
+                    </div>
+                    <div style="flex:0 1 150px; min-width:140px;">
+                        <small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Data inicial</small>
+                        <input type="date" id="dev-desc-data-ini" class="form-control" style="width:100%;" title="Data inicial" onchange="app.renderDevDescarte()">
+                    </div>
+                    <div style="flex:0 1 150px; min-width:140px;">
+                        <small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Data final</small>
+                        <input type="date" id="dev-desc-data-fim" class="form-control" style="width:100%;" title="Data final" onchange="app.renderDevDescarte()">
+                    </div>
+                    <div style="flex:0 1 170px; min-width:150px;">
+                        <small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Exibição</small>
+                        <select id="dev-desc-view" class="form-control" style="width:100%;" onchange="app.renderDevDescarte()">
+                            <option value="lote">Agrupar por lote</option>
+                            <option value="item">Listar por item</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center; margin-bottom:1rem;">
                     <button class="btn btn-secondary" onclick="app.exportarDescartePDF()">📄 Exportar PDF (c/ fotos)</button>
                     <button class="btn btn-secondary" onclick="app.exportarDescarteExcel()">📊 Exportar Excel</button>
-                    <span id="dev-desc-count" style="color:var(--text-sec); font-size:0.85rem;"></span>
+                    <span id="dev-desc-count" style="color:var(--text-sec); font-size:0.85rem; margin-left:auto;"></span>
                 </div>
                 <div id="dev-desc-lista"></div>
             </div>
@@ -1617,12 +1649,13 @@ body.monitor-mode .queue-card button { display: none !important; }
             </div>
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
+                <button class="btn btn-primary req-analise-sac-edit" id="btn-sac-liberar-todos" onclick="app.finalizarSacCard()">OK — Liberar crédito de todos</button>
             </div>
         </div>
 
         <div class="drawer dev-fullscreen" id="drawer-dev-saque">
             <div class="drawer-header">
-                <h2>📤 Saque <span id="dev-saq-protocolo"></span></h2>
+                <h2>📤 SAC <span id="dev-saq-protocolo"></span></h2>
                 <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
             </div>
             <div class="drawer-body">
@@ -1634,6 +1667,22 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
                 <button class="btn btn-primary" onclick="app.finalizarDevolucaoSaque()">✔ Finalizar Devolução</button>
                 <button class="btn btn-primary" id="btn-sac-pdf" onclick="app.gerarPdfSac()">📄 Gerar PDF</button>
+            </div>
+        </div>
+
+        <div class="drawer dev-fullscreen" id="drawer-sac-finalizado">
+            <div class="drawer-header">
+                <h2>✅ Finalizada <span id="sac-fin-protocolo"></span></h2>
+                <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
+            </div>
+            <div class="drawer-body">
+                <div id="sac-fin-info" style="margin-bottom:1rem; font-size:0.88rem; color:var(--text-sec);"></div>
+                <div style="font-size:0.8rem; color:var(--text-sec); margin-bottom:0.8rem; padding:0.5rem 0.8rem; border:1px dashed var(--border); border-radius:6px;">🔒 Devolução finalizada — somente leitura. Consulte os produtos e gere o PDF.</div>
+                <div id="sac-fin-itens"></div>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
+                <button class="btn btn-primary" onclick="app.gerarPdfSac()">📄 Gerar PDF</button>
             </div>
         </div>
 
@@ -1819,9 +1868,8 @@ body.monitor-mode .queue-card button { display: none !important; }
         <section id="sac-module" class="module">
             <div class="module-header"><h1>SAC</h1></div>
             <div style="border-bottom:1px solid var(--border); margin-bottom:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-                <button class="dev-subtab active" data-sacsub="sac-saque" onclick="app.switchSacSubtab('sac-saque')">📤 Saque</button>
-                <button class="dev-subtab" data-sacsub="sac-garantia" onclick="app.switchSacSubtab('sac-garantia')">🛡️ Garantia</button>
-                <button class="dev-subtab" data-sacsub="sac-devolucao" onclick="app.switchSacSubtab('sac-devolucao')">↩️ Devolução</button>
+                <button class="dev-subtab active" data-sacsub="sac-saque" onclick="app.switchSacSubtab('sac-saque')">📤 SAC</button>
+                <button class="dev-subtab" data-sacsub="sac-finalizados" onclick="app.switchSacSubtab('sac-finalizados')">✅ Finalizados</button>
             </div>
 
             <div id="sac-saque" class="sac-subtab-content">
@@ -1832,7 +1880,57 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <div id="dev-saq-lista" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:0.8rem;"></div>
             </div>
 
-            <div id="sac-garantia" class="sac-subtab-content" style="display:none;">
+            <div id="sac-finalizados" class="sac-subtab-content" style="display:none;">
+                <div class="flex gap-2 flex-wrap" style="margin-bottom:1rem; align-items:center;">
+                    <input type="text" id="sac-fin-busca" class="form-control" placeholder="🔍 Buscar por protocolo, cliente ou recebedor..." style="max-width:360px;" oninput="app.renderDevFinalizados()">
+                    <span id="sac-fin-count" style="color:var(--text-sec); font-size:0.85rem;"></span>
+                </div>
+                <div id="sac-fin-lista" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:0.8rem;"></div>
+            </div>
+        </section>
+
+        <section id="analise-sac-module" class="module">
+            <div class="module-header"><h1>Análise do SAC</h1></div>
+            <div style="border-bottom:1px solid var(--border); margin-bottom:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <button class="as-subtab active" data-assub="as-dashboard" onclick="app.switchAnaliseSacSubtab('as-dashboard')">📊 Dashboard</button>
+                <button class="as-subtab" data-assub="sac-garantia" onclick="app.switchAnaliseSacSubtab('sac-garantia')">🛡️ Garantia</button>
+                <button class="as-subtab" data-assub="sac-devolucao" onclick="app.switchAnaliseSacSubtab('sac-devolucao')">↩️ Devolução</button>
+            </div>
+
+            <div id="as-dashboard" class="as-subtab-content">
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:flex-end; margin-bottom:1.2rem;">
+                    <div style="flex:0 1 130px; min-width:110px;">
+                        <small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Ano</small>
+                        <select id="as-filtro-ano" class="form-control" style="width:100%;" onchange="app.renderAnaliseSacDashboard()"></select>
+                    </div>
+                    <div style="flex:0 1 160px; min-width:140px;">
+                        <small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Mês</small>
+                        <select id="as-filtro-mes" class="form-control" style="width:100%;" onchange="app.renderAnaliseSacDashboard()">
+                            <option value="">Todos os meses</option>
+                            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+                        </select>
+                    </div>
+                    <div style="flex:1 1 220px; min-width:180px;">
+                        <small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Cliente</small>
+                        <select id="as-filtro-cliente" class="form-control" style="width:100%;" onchange="app.renderAnaliseSacDashboard()">
+                            <option value="">Todos os clientes</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card" style="margin-bottom:1rem;">
+                    <h3 style="margin:0 0 1rem;">📊 Crédito por mês — Garantia × Devolução</h3>
+                    <div id="as-graf-colunas"></div>
+                </div>
+                <div class="card" style="margin-bottom:1rem;">
+                    <h3 style="margin:0 0 1rem;">📈 Evolução — Garantia × Devolução</h3>
+                    <div id="as-graf-linha"></div>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+                    <div id="as-graf-pizza" style="display:flex; flex:1; min-width:300px;"></div>
+                </div>
+            </div>
+
+            <div id="sac-garantia" class="as-subtab-content" style="display:none;">
                 <div class="flex gap-2 flex-wrap" style="margin-bottom:1rem; align-items:center;">
                     <input type="text" id="sac-gar-busca" class="form-control" placeholder="🔍 Buscar por protocolo, cliente ou vendedor..." style="max-width:360px;" oninput="app.renderSacGarantia()">
                     <span id="sac-gar-count" style="color:var(--text-sec); font-size:0.85rem;"></span>
@@ -1840,7 +1938,7 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <div id="sac-gar-lista" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:0.8rem;"></div>
             </div>
 
-            <div id="sac-devolucao" class="sac-subtab-content" style="display:none;">
+            <div id="sac-devolucao" class="as-subtab-content" style="display:none;">
                 <div class="flex gap-2 flex-wrap" style="margin-bottom:1rem; align-items:center;">
                     <input type="text" id="sac-dev-busca" class="form-control" placeholder="🔍 Buscar por protocolo, cliente ou vendedor..." style="max-width:360px;" oninput="app.renderSacDevolucao()">
                     <span id="sac-dev-count" style="color:var(--text-sec); font-size:0.85rem;"></span>
@@ -2272,6 +2370,7 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <div class="flex justify-between items-center mb-2"><span style="font-size: 12px; font-weight: 600; width: 100px;">🗂️ Registro</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-registro-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-registro-editar" class="perm-cb"> Editar/Lançar</label></div></div>
                 <div class="flex justify-between items-center mb-2"><span style="font-size: 12px; font-weight: 600; width: 100px;">🧾 Fiscal</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-fiscal-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-fiscal-editar" class="perm-cb"> Editar/Lançar</label></div></div>
                 <div class="flex justify-between items-center mb-2"><span style="font-size: 12px; font-weight: 600; width: 100px;">💬 SAC</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-sac-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-sac-editar" class="perm-cb"> Editar/Lançar</label></div></div>
+                <div class="flex justify-between items-center mb-2"><span style="font-size: 12px; font-weight: 600; width: 100px;">📊 Análise do SAC</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-analise-sac-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-analise-sac-editar" class="perm-cb"> Editar/Lançar</label></div></div>
                 <div class="flex justify-between items-center"><span style="font-size: 12px; font-weight: 600; width: 100px;">⚙️ Config.</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-config-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-config-editar" class="perm-cb"> Editar/Lançar</label></div></div>
             </div>
         </form>
@@ -2301,7 +2400,7 @@ const app = (function() {
         const ehAdmin = state.currentUser.perfil === 'admin';
         const TUDO = { ver: true, editar: true };
         const p = ehAdmin
-            ? { dashboard: TUDO, pedidos: TUDO, operacional: { sep: true, conf: true }, relatorio: TUDO, atendimento: TUDO, financeiro: TUDO, reposicao: TUDO, config: TUDO, estoque: TUDO, devolucao: TUDO, importacao: TUDO, alteracao: TUDO, produtividade: TUDO, registro: TUDO, fiscal: TUDO, sac: TUDO }
+            ? { dashboard: TUDO, pedidos: TUDO, operacional: { sep: true, conf: true }, relatorio: TUDO, atendimento: TUDO, financeiro: TUDO, reposicao: TUDO, config: TUDO, estoque: TUDO, devolucao: TUDO, importacao: TUDO, alteracao: TUDO, produtividade: TUDO, registro: TUDO, fiscal: TUDO, sac: TUDO, analiseSac: TUDO }
             : (state.currentUser.permissoes || { dashboard: {ver: true}, pedidos: { ver: true, editar: true }, operacional: { sep: true, conf: true }, relatorio: {ver: true}, atendimento: { ver: true, editar: true }, reposicao: { ver: true, editar: true }, config: { ver: true, editar: true } });
         if (!p.dashboard) p.dashboard = { ver: true };
         if (!p.operacional) p.operacional = { sep: true, conf: true };
@@ -2314,6 +2413,7 @@ const app = (function() {
         if (!p.registro) p.registro = { ver: false, editar: false };
         if (!p.fiscal) p.fiscal = { ver: false, editar: false };
         if (!p.sac) p.sac = { ver: false, editar: false };
+        if (!p.analiseSac) p.analiseSac = { ver: false, editar: false };
 
         document.body.setAttribute('data-perm-alteracao-ver', p.alteracao.ver);
         document.body.setAttribute('data-perm-produtividade-ver', p.produtividade.ver);
@@ -2343,6 +2443,8 @@ const app = (function() {
         document.body.setAttribute('data-perm-fiscal-edit', p.fiscal.editar);
         document.body.setAttribute('data-perm-sac-ver', p.sac.ver);
         document.body.setAttribute('data-perm-sac-edit', p.sac.editar);
+        document.body.setAttribute('data-perm-analise-sac-ver', p.analiseSac.ver);
+        document.body.setAttribute('data-perm-analise-sac-edit', p.analiseSac.editar);
 
         const activeNav = document.querySelector('.nav-item.active');
         if (activeNav && window.getComputedStyle(activeNav).display === 'none') {
@@ -2517,6 +2619,7 @@ const app = (function() {
         if(window.innerWidth <= 768) { document.getElementById('sidebar').classList.remove('mobile-open'); }
         if(targetId === 'estoque-module') { iniciarRealtimeEstoque(); } else { pararRealtimeEstoque(); }
         if(targetId === 'sac-module') { switchSacSubtab('sac-saque'); }
+        if(targetId === 'analise-sac-module') { switchAnaliseSacSubtab('as-dashboard'); }
         if(targetId === 'relatorio-module') { carregarRelatorioErros(); }
         else if(targetId === 'produtividade-module') { renderProdutividade(); }
         else if(targetId === 'fiscal-module') { if (typeof renderFiscalFila === 'function') renderFiscalFila(); }
@@ -2719,7 +2822,7 @@ const app = (function() {
             const form = document.getElementById('form-usuario'); form.reset();
             if(data) {
                 document.getElementById('titulo-drawer-usuario').innerText = 'Editar'; document.getElementById('user-id').value = data.id; document.getElementById('user-nome').value = data.nome; document.getElementById('user-login').value = data.login; document.getElementById('user-senha').value = ''; document.getElementById('user-perfil').value = data.perfil;
-                const p = data.permissoes; document.getElementById('perm-dash-ver').checked = p.dashboard ? p.dashboard.ver : true; document.getElementById('perm-pedidos-ver').checked = p.pedidos.ver; document.getElementById('perm-pedidos-editar').checked = p.pedidos.editar; document.getElementById('perm-op-sep').checked = p.operacional ? p.operacional.sep : true; document.getElementById('perm-op-conf').checked = p.operacional ? p.operacional.conf : true; document.getElementById('perm-relatorio-ver').checked = p.relatorio ? p.relatorio.ver : true; document.getElementById('perm-atend-ver').checked = p.atendimento.ver; document.getElementById('perm-atend-editar').checked = p.atendimento.editar; const permFinCb = document.getElementById('perm-financeiro-ver'); if (permFinCb) permFinCb.checked = p.financeiro ? p.financeiro.ver : true; document.getElementById('perm-repo-ver').checked = p.reposicao.ver; document.getElementById('perm-repo-editar').checked = p.reposicao.editar; document.getElementById('perm-config-ver').checked = p.config.ver; document.getElementById('perm-config-editar').checked = p.config.editar; document.getElementById('perm-estoque-ver').checked = p.estoque ? p.estoque.ver : true; document.getElementById('perm-estoque-editar').checked = p.estoque ? p.estoque.editar : true; document.getElementById('perm-devolucao-ver').checked = p.devolucao ? p.devolucao.ver : true; document.getElementById('perm-devolucao-editar').checked = p.devolucao ? p.devolucao.editar : true; document.getElementById('perm-importacao-ver').checked = p.importacao ? p.importacao.ver : true; document.getElementById('perm-importacao-editar').checked = p.importacao ? p.importacao.editar : true; document.getElementById('perm-alteracao-ver').checked = p.alteracao ? p.alteracao.ver : true; document.getElementById('perm-produtividade-ver').checked = p.produtividade ? p.produtividade.ver : true; document.getElementById('perm-registro-ver').checked = p.registro ? p.registro.ver : false; document.getElementById('perm-registro-editar').checked = p.registro ? p.registro.editar : false; document.getElementById('perm-fiscal-ver').checked = p.fiscal ? p.fiscal.ver : false; document.getElementById('perm-fiscal-editar').checked = p.fiscal ? p.fiscal.editar : false; document.getElementById('perm-sac-ver').checked = p.sac ? p.sac.ver : false; document.getElementById('perm-sac-editar').checked = p.sac ? p.sac.editar : false;
+                const p = data.permissoes; document.getElementById('perm-dash-ver').checked = p.dashboard ? p.dashboard.ver : true; document.getElementById('perm-pedidos-ver').checked = p.pedidos.ver; document.getElementById('perm-pedidos-editar').checked = p.pedidos.editar; document.getElementById('perm-op-sep').checked = p.operacional ? p.operacional.sep : true; document.getElementById('perm-op-conf').checked = p.operacional ? p.operacional.conf : true; document.getElementById('perm-relatorio-ver').checked = p.relatorio ? p.relatorio.ver : true; document.getElementById('perm-atend-ver').checked = p.atendimento.ver; document.getElementById('perm-atend-editar').checked = p.atendimento.editar; const permFinCb = document.getElementById('perm-financeiro-ver'); if (permFinCb) permFinCb.checked = p.financeiro ? p.financeiro.ver : true; document.getElementById('perm-repo-ver').checked = p.reposicao.ver; document.getElementById('perm-repo-editar').checked = p.reposicao.editar; document.getElementById('perm-config-ver').checked = p.config.ver; document.getElementById('perm-config-editar').checked = p.config.editar; document.getElementById('perm-estoque-ver').checked = p.estoque ? p.estoque.ver : true; document.getElementById('perm-estoque-editar').checked = p.estoque ? p.estoque.editar : true; document.getElementById('perm-devolucao-ver').checked = p.devolucao ? p.devolucao.ver : true; document.getElementById('perm-devolucao-editar').checked = p.devolucao ? p.devolucao.editar : true; document.getElementById('perm-importacao-ver').checked = p.importacao ? p.importacao.ver : true; document.getElementById('perm-importacao-editar').checked = p.importacao ? p.importacao.editar : true; document.getElementById('perm-alteracao-ver').checked = p.alteracao ? p.alteracao.ver : true; document.getElementById('perm-produtividade-ver').checked = p.produtividade ? p.produtividade.ver : true; document.getElementById('perm-registro-ver').checked = p.registro ? p.registro.ver : false; document.getElementById('perm-registro-editar').checked = p.registro ? p.registro.editar : false; document.getElementById('perm-fiscal-ver').checked = p.fiscal ? p.fiscal.ver : false; document.getElementById('perm-fiscal-editar').checked = p.fiscal ? p.fiscal.editar : false; document.getElementById('perm-sac-ver').checked = p.sac ? p.sac.ver : false; document.getElementById('perm-sac-editar').checked = p.sac ? p.sac.editar : false; document.getElementById('perm-analise-sac-ver').checked = p.analiseSac ? p.analiseSac.ver : false; document.getElementById('perm-analise-sac-editar').checked = p.analiseSac ? p.analiseSac.editar : false;
             } else { document.getElementById('titulo-drawer-usuario').innerText = 'Novo'; document.getElementById('user-id').value = ''; document.querySelectorAll('.perm-cb').forEach(cb => cb.checked = true); document.getElementById('user-perfil').value = 'Operador'; }
         }
     }
@@ -3973,13 +4076,13 @@ const app = (function() {
     // ================= DEVOLUÇÃO: DESCARTE =================
     function getItensDescarte() {
         // todos os itens com solução = DESCARTE, enriquecidos com dados do produto e do check-in
-        return (state.devItens || []).filter(i => (i.solucao || '').toUpperCase() === 'DESCARTE').map(i => {
+        return (state.devItens || []).filter(i => ['DESCARTE', 'DESCARTAR'].includes((i.solucao || '').toUpperCase())).map(i => {
             const prod = state.devProdutos.find(p => p.id === i.produtoId);
             const ck = state.devCheckins.find(c => c.id === i.checkinId);
             return {
                 id: i.id,
-                referencia: prod ? prod.referencia : '?',
-                descricao: prod ? prod.descricao : '?',
+                referencia: prodRefSac(i),
+                descricao: prodDescSac(i),
                 quantidade: i.quantidade || 0,
                 lote: i.lote || '(sem lote)',
                 caixaDescarte: i.caixaDescarte || '',
@@ -4003,10 +4106,12 @@ const app = (function() {
     function getItensDescarteFiltrados() {
         const busca = (document.getElementById('dev-desc-busca') ? document.getElementById('dev-desc-busca').value : '').toLowerCase().trim();
         const loteSel = document.getElementById('dev-desc-lote') ? document.getElementById('dev-desc-lote').value : '';
+        const clienteSel = document.getElementById('dev-desc-cliente') ? document.getElementById('dev-desc-cliente').value : '';
         const dataIni = document.getElementById('dev-desc-data-ini') ? document.getElementById('dev-desc-data-ini').value : '';
         const dataFim = document.getElementById('dev-desc-data-fim') ? document.getElementById('dev-desc-data-fim').value : '';
         let itens = getItensDescarte();
         if (loteSel) itens = itens.filter(i => i.lote === loteSel);
+        if (clienteSel) itens = itens.filter(i => i.cliente === clienteSel);
         if (dataIni || dataFim) {
             itens = itens.filter(i => {
                 const iso = converterDataBRparaISO(i.dataRecebimento);
@@ -4016,7 +4121,7 @@ const app = (function() {
                 return true;
             });
         }
-        if (busca) itens = itens.filter(i => i.descricao.toLowerCase().includes(busca) || i.referencia.toLowerCase().includes(busca) || i.lote.toLowerCase().includes(busca) || i.caixaDescarte.toLowerCase().includes(busca));
+        if (busca) itens = itens.filter(i => i.descricao.toLowerCase().includes(busca) || i.referencia.toLowerCase().includes(busca) || i.lote.toLowerCase().includes(busca) || i.caixaDescarte.toLowerCase().includes(busca) || (i.cliente || '').toLowerCase().includes(busca));
         return itens;
     }
 
@@ -4029,10 +4134,20 @@ const app = (function() {
         sel.value = atual; // preserva a seleção se ainda existir
     }
 
+    function popularSeletorClientesDescarte() {
+        const sel = document.getElementById('dev-desc-cliente');
+        if (!sel) return;
+        const atual = sel.value;
+        const clientes = [...new Set(getItensDescarte().map(i => i.cliente).filter(Boolean))].sort();
+        sel.innerHTML = '<option value="">Todos os clientes</option>' + clientes.map(c => `<option value="${escapeWms(c)}">${escapeWms(c)}</option>`).join('');
+        sel.value = atual; // preserva a seleção se ainda existir
+    }
+
     function renderDevDescarte() {
         const cont = document.getElementById('dev-desc-lista');
         if (!cont) return;
         popularSeletorLotesDescarte();
+        popularSeletorClientesDescarte();
         const view = document.getElementById('dev-desc-view') ? document.getElementById('dev-desc-view').value : 'lote';
         let itens = getItensDescarteFiltrados();
         const countEl = document.getElementById('dev-desc-count');
@@ -4648,7 +4763,7 @@ const app = (function() {
         if (error) { console.error('Erro ao carregar check-ins:', error.message); return; }
         const { data: itens, error: err2 } = await db.from('dev_itens').select('*').eq('admin_id', state.adminId);
         if (err2) { console.error('Erro ao carregar itens devolução:', err2.message); return; }
-        state.devCheckins = (cks || []).map(c => ({ id: c.id, recebidoPor: c.recebido_por || '', dataRecebimento: c.data_recebimento || '', protocolo: c.protocolo || '', expedicao: c.expedicao || '', cliente: c.cliente || '', qtdVolumes: c.qtd_volumes || 0, observacao: c.observacao || '', status: c.status || 'Pendente', conferente: c.conferente || '', sacVendedor: c.sac_vendedor || '', sacPdfAprovado: c.sac_pdf_aprovado === true }));
+        state.devCheckins = (cks || []).map(c => ({ id: c.id, recebidoPor: c.recebido_por || '', dataRecebimento: c.data_recebimento || '', protocolo: c.protocolo || '', expedicao: c.expedicao || '', cliente: c.cliente || '', qtdVolumes: c.qtd_volumes || 0, observacao: c.observacao || '', status: c.status || 'Pendente', conferente: c.conferente || '', sacVendedor: c.sac_vendedor || '', sacPdfAprovado: c.sac_pdf_aprovado === true, tipoDevolucao: c.tipo_devolucao || 'Física' }));
         state.devItens = (itens || []).map(i => ({ id: i.id, checkinId: i.checkin_id, produtoId: i.produto_id, quantidade: i.quantidade, lote: i.lote || '', funciona: i.funciona || '', condicao: i.condicao || '', caixaDescarte: i.caixa_descarte || '', solucao: i.solucao || '', observacaoSac: i.observacao_sac || '', observacao: i.observacao || '', fotoUrl: i.foto_url || '', produtoAvulsoRef: i.produto_avulso_ref || '', produtoAvulsoDesc: i.produto_avulso_desc || '', sacMetodo: i.sac_metodo || '', sacGarantia: i.sac_garantia || '', sacValorUnit: i.sac_valor_unit, sacValorTotal: i.sac_valor_total, sacDataCredito: i.sac_data_credito || '', sacValorCredito: i.sac_valor_credito, sacVendedor: i.sac_vendedor || '', sacFinalizado: i.sac_finalizado === true, sacDataFinalizado: i.sac_data_finalizado || '' }));
         if (typeof renderDevRegistro === 'function') renderDevRegistro();
         if (typeof renderDevSaque === 'function') renderDevSaque();
@@ -4753,7 +4868,7 @@ const app = (function() {
     async function excluirDevolucao(checkinId) {
         const c = state.devCheckins.find(x => x.id === checkinId);
         if (!c) return;
-        const ok = await confirmar(`Excluir a devolução ${c.protocolo || ''}?\n\nATENÇÃO: isso remove o check-in, todos os itens, e o que estiver no Saque e no Descarte desta devolução. Não pode ser desfeito.`);
+        const ok = await confirmar(`Excluir a devolução ${c.protocolo || ''}?\n\nATENÇÃO: isso remove o check-in, todos os itens, e o que estiver no SAC e no Descarte desta devolução. Não pode ser desfeito.`);
         if (!ok) return;
         // o ON DELETE CASCADE remove os dev_itens automaticamente
         const { error } = await db.from('dev_checkins').delete().eq('id', checkinId);
@@ -4806,7 +4921,7 @@ const app = (function() {
         if (itens.length === 0) { avisar('Adicione ao menos um item antes de finalizar.'); return; }
         const { error } = await db.from('dev_checkins').update({ status: 'Concluída' }).eq('id', _relCheckinAtual.id);
         if (error) { avisar('Erro ao finalizar: ' + error.message); return; }
-        avisar('Registro finalizado! Devolução liberada para o Saque.');
+        avisar('Registro finalizado! Devolução liberada para o SAC.');
         closeAllDrawers();
         await carregarDevCheckins();
     }
@@ -4876,22 +4991,29 @@ const app = (function() {
         itens.forEach(i => {
             const prod = (state.devProdutos || []).find(p => p.id === i.produtoId) || { referencia: prodRefSac(i), descricao: prodDescSac(i) };
             const ok = i.sacFinalizado === true;
-            const dataReal = i.sacDataFinalizado ? new Date(i.sacDataFinalizado).toLocaleDateString('pt-BR') : '—';
+            const dataCred = i.sacDataCredito ? String(i.sacDataCredito).split('-').reverse().join('/') : '—';
             const div = document.createElement('div');
             div.style.cssText = `border:1px solid ${ok ? 'var(--success,#28a745)' : 'var(--border)'}; border-radius:8px; padding:0.8rem 1rem; margin-bottom:0.6rem; background:${ok ? 'rgba(34,197,94,0.08)' : 'transparent'};`;
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
                     <div><strong>${escapeWms(prod.referencia || '?')}</strong> — ${escapeWms(prod.descricao || '')}</div>
-                    ${ok ? '<span style="font-size:1.3rem;">✅</span>' : `<button class="btn btn-primary req-sac-edit" style="padding:0.3rem 0.7rem; font-size:0.8rem; white-space:nowrap;" onclick="app.finalizarSacItem('${i.id}')">OK — Crédito concedido</button>`}
+                    ${ok ? '<span style="font-size:0.72rem; font-weight:600; color:var(--success); border:1px solid var(--success); padding:0.15rem 0.5rem; border-radius:10px; white-space:nowrap;">✅ Liberado</span>' : '<span style="font-size:0.72rem; font-weight:600; color:#f59e0b; border:1px solid #f59e0b; padding:0.15rem 0.5rem; border-radius:10px; white-space:nowrap;">Pendente</span>'}
                 </div>
                 <div style="font-size:0.85rem; line-height:1.6; margin-top:0.4rem;">
                     <div><strong>Vendedor:</strong> ${escapeWms(i.sacVendedor || '—')}</div>
                     <div><strong>Valor de crédito:</strong> ${i.sacValorCredito != null ? 'R$ ' + Number(i.sacValorCredito).toFixed(2) : '—'}</div>
-                    <div><strong>Data realizada:</strong> ${ok ? dataReal : '<span style="color:#f59e0b;">pendente</span>'}</div>
+                    <div><strong>Data do crédito:</strong> ${ok ? dataCred : '<span style="color:#f59e0b;">pendente</span>'}</div>
                     ${i.observacaoSac ? `<div><strong>Obs:</strong> ${escapeWms(i.observacaoSac)}</div>` : ''}
                 </div>`;
             cont.appendChild(div);
         });
+        const btn = document.getElementById('btn-sac-liberar-todos');
+        if (btn) {
+            const todosOk = itens.length > 0 && itens.every(i => i.sacFinalizado === true);
+            btn.disabled = todosOk;
+            btn.style.opacity = todosOk ? '0.5' : '1';
+            btn.textContent = todosOk ? '✅ Crédito liberado' : 'OK — Liberar crédito de todos';
+        }
     }
 
     async function finalizarSacItem(itemId) {
@@ -4908,6 +5030,28 @@ const app = (function() {
         if (typeof renderDevSaque === 'function') renderDevSaque();
     }
 
+    async function finalizarSacCard() {
+        if (!_sacVisaoAtual) return;
+        const { metodo, checkinId } = _sacVisaoAtual;
+        const itens = (state.devItens || []).filter(i => i.checkinId === checkinId && i.sacMetodo === metodo);
+        const pend = itens.filter(i => i.sacFinalizado !== true);
+        if (pend.length === 0) { avisar('Todos os produtos deste cliente já tiveram o crédito liberado.'); return; }
+        const ok = await confirmar(`Liberar o crédito de ${pend.length} produto(s) deste cliente? A data do crédito será preenchida com a data de hoje.`);
+        if (!ok) return;
+        const agora = new Date().toISOString();
+        const d = new Date();
+        const hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const ids = pend.map(i => i.id);
+        const { error } = await db.from('dev_itens').update({ sac_finalizado: true, sac_data_finalizado: agora, sac_data_credito: hoje }).in('id', ids);
+        if (error) { avisar('Erro ao liberar crédito: ' + error.message); return; }
+        pend.forEach(it => { it.sacFinalizado = true; it.sacDataFinalizado = agora; it.sacDataCredito = hoje; });
+        avisar('Crédito liberado para todos os produtos do cliente!');
+        renderSacVisaoItens();
+        renderSacGarantia();
+        renderSacDevolucao();
+        if (typeof renderDevSaque === 'function') renderDevSaque();
+    }
+
     function switchSacSubtab(sub) {
         document.querySelectorAll('.sac-subtab-content').forEach(c => c.style.display = 'none');
         const painel = document.getElementById(sub);
@@ -4916,8 +5060,166 @@ const app = (function() {
         const btn = document.querySelector(`[data-sacsub="${sub}"]`);
         if (btn) btn.classList.add('active');
         if (sub === 'sac-saque') renderDevSaque();
+        if (sub === 'sac-finalizados') renderDevFinalizados();
+    }
+
+    function switchAnaliseSacSubtab(sub) {
+        document.querySelectorAll('.as-subtab-content').forEach(c => c.style.display = 'none');
+        const painel = document.getElementById(sub);
+        if (painel) painel.style.display = 'block';
+        document.querySelectorAll('[data-assub]').forEach(t => t.classList.remove('active'));
+        const btn = document.querySelector(`[data-assub="${sub}"]`);
+        if (btn) btn.classList.add('active');
         if (sub === 'sac-garantia' && typeof renderSacGarantia === 'function') renderSacGarantia();
         if (sub === 'sac-devolucao' && typeof renderSacDevolucao === 'function') renderSacDevolucao();
+        if (sub === 'as-dashboard' && typeof renderAnaliseSacDashboard === 'function') renderAnaliseSacDashboard();
+    }
+
+    // ================= ANÁLISE DO SAC — DASHBOARD =================
+    function _asFmtBRL(v) {
+        v = Number(v) || 0;
+        if (Math.abs(v) >= 1000) return 'R$ ' + (v / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'k';
+        return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+    function _asFmtBRLfull(v) {
+        return 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function _asItensBase() {
+        return (state.devItens || []).filter(i => (i.sacMetodo === 'Garantia' || i.sacMetodo === 'Devolução') && i.sacDataFinalizado).map(i => {
+            const ck = (state.devCheckins || []).find(c => c.id === i.checkinId) || {};
+            const dt = new Date(i.sacDataFinalizado);
+            return {
+                metodo: i.sacMetodo,
+                valor: (i.sacValorCredito != null && i.sacValorCredito !== '') ? Number(i.sacValorCredito) : 0,
+                ano: dt.getFullYear(),
+                mes: dt.getMonth(),
+                dia: dt.getDate(),
+                cliente: ck.cliente || '',
+                tipo: ck.tipoDevolucao || 'Física'
+            };
+        }).filter(x => !isNaN(x.ano));
+    }
+
+    function popularFiltrosAnaliseSac() {
+        const base = _asItensBase();
+        const selAno = document.getElementById('as-filtro-ano');
+        if (selAno && selAno.options.length === 0) {
+            const anos = [...new Set(base.map(i => i.ano))];
+            const anoAtual = new Date().getFullYear();
+            if (!anos.includes(anoAtual)) anos.push(anoAtual);
+            anos.sort((a, b) => b - a);
+            selAno.innerHTML = anos.map(a => `<option value="${a}">${a}</option>`).join('');
+            selAno.value = String(anoAtual);
+        }
+        const selCli = document.getElementById('as-filtro-cliente');
+        if (selCli) {
+            const atual = selCli.value;
+            const clientes = [...new Set(base.map(i => i.cliente).filter(Boolean))].sort();
+            selCli.innerHTML = '<option value="">Todos os clientes</option>' + clientes.map(c => `<option value="${escapeWms(c)}">${escapeWms(c)}</option>`).join('');
+            selCli.value = atual;
+        }
+    }
+
+    function renderAnaliseSacDashboard() {
+        if (!document.getElementById('as-dashboard')) return;
+        popularFiltrosAnaliseSac();
+        const ano = parseInt(document.getElementById('as-filtro-ano') ? document.getElementById('as-filtro-ano').value : '', 10) || new Date().getFullYear();
+        const mesSel = document.getElementById('as-filtro-mes') ? document.getElementById('as-filtro-mes').value : '';
+        const cliSel = document.getElementById('as-filtro-cliente') ? document.getElementById('as-filtro-cliente').value : '';
+        let base = _asItensBase().filter(i => i.ano === ano);
+        if (cliSel) base = base.filter(i => i.cliente === cliSel);
+        const mesEspecifico = (mesSel !== '' && mesSel !== null) ? parseInt(mesSel, 10) : null;
+        const nomesMes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+        let labelsCol, garCol, devCol;
+        if (mesEspecifico != null) {
+            labelsCol = [nomesMes[mesEspecifico]];
+            garCol = [base.filter(i => i.mes === mesEspecifico && i.metodo === 'Garantia').reduce((s, i) => s + i.valor, 0)];
+            devCol = [base.filter(i => i.mes === mesEspecifico && i.metodo === 'Devolução').reduce((s, i) => s + i.valor, 0)];
+        } else {
+            labelsCol = nomesMes;
+            garCol = nomesMes.map((_, m) => base.filter(i => i.mes === m && i.metodo === 'Garantia').reduce((s, i) => s + i.valor, 0));
+            devCol = nomesMes.map((_, m) => base.filter(i => i.mes === m && i.metodo === 'Devolução').reduce((s, i) => s + i.valor, 0));
+        }
+        document.getElementById('as-graf-colunas').innerHTML = _asBarChart(labelsCol, garCol, devCol);
+
+        let labelsLin, garLin, devLin;
+        if (mesEspecifico != null) {
+            const dias = new Date(ano, mesEspecifico + 1, 0).getDate();
+            labelsLin = Array.from({ length: dias }, (_, k) => String(k + 1));
+            garLin = Array.from({ length: dias }, (_, k) => base.filter(i => i.mes === mesEspecifico && i.dia === k + 1 && i.metodo === 'Garantia').reduce((s, i) => s + i.valor, 0));
+            devLin = Array.from({ length: dias }, (_, k) => base.filter(i => i.mes === mesEspecifico && i.dia === k + 1 && i.metodo === 'Devolução').reduce((s, i) => s + i.valor, 0));
+        } else {
+            labelsLin = nomesMes;
+            garLin = garCol.slice();
+            devLin = devCol.slice();
+        }
+        document.getElementById('as-graf-linha').innerHTML = _asLineChart(labelsLin, garLin, devLin);
+
+        let baseGar = base.filter(i => i.metodo === 'Garantia');
+        if (mesEspecifico != null) baseGar = baseGar.filter(i => i.mes === mesEspecifico);
+        const fisica = baseGar.filter(i => i.tipo === 'Física').length;
+        const online = baseGar.filter(i => i.tipo === 'Online').length;
+        document.getElementById('as-graf-pizza').innerHTML = gerarPizza([['Física', fisica], ['Online', online]], 'Garantias — Física × Online', '🥧');
+    }
+
+    function _asBarChart(labels, gar, dev) {
+        const maxVal = Math.max(1, ...gar, ...dev);
+        if (gar.every(v => v === 0) && dev.every(v => v === 0)) {
+            return '<p style="color:var(--text-sec);">Sem crédito lançado no período.</p>';
+        }
+        let html = '<div style="display:flex; align-items:flex-end; gap:1rem; height:260px; padding-top:1.5rem; overflow-x:auto;">';
+        labels.forEach((lb, idx) => {
+            const hG = Math.round((gar[idx] / maxVal) * 200);
+            const hD = Math.round((dev[idx] / maxVal) * 200);
+            html += `<div style="display:flex; flex-direction:column; align-items:center; min-width:56px;">
+                <div style="display:flex; align-items:flex-end; gap:4px; height:200px;">
+                    <div style="width:20px; height:${hG}px; background:#2F81F7; border-radius:3px 3px 0 0; position:relative;" title="Garantia: ${_asFmtBRLfull(gar[idx])}"><span style="position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:0.62rem; color:var(--text-sec); white-space:nowrap;">${gar[idx] ? _asFmtBRL(gar[idx]) : ''}</span></div>
+                    <div style="width:20px; height:${hD}px; background:#f0883e; border-radius:3px 3px 0 0; position:relative;" title="Devolução: ${_asFmtBRLfull(dev[idx])}"><span style="position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:0.62rem; color:var(--text-sec); white-space:nowrap;">${dev[idx] ? _asFmtBRL(dev[idx]) : ''}</span></div>
+                </div>
+                <div style="margin-top:0.5rem; font-size:0.72rem; color:var(--text-sec);">${lb}</div>
+            </div>`;
+        });
+        html += '</div>';
+        html += '<div style="display:flex; gap:1.2rem; margin-top:0.8rem; font-size:0.82rem;"><span><span style="display:inline-block; width:12px; height:12px; background:#2F81F7; border-radius:2px; margin-right:0.3rem;"></span>Garantia</span><span><span style="display:inline-block; width:12px; height:12px; background:#f0883e; border-radius:2px; margin-right:0.3rem;"></span>Devolução</span></div>';
+        return html;
+    }
+
+    function _asLineChart(labels, gar, dev) {
+        const n = labels.length;
+        if (n === 0 || (gar.every(v => v === 0) && dev.every(v => v === 0))) {
+            return '<p style="color:var(--text-sec);">Sem crédito lançado no período.</p>';
+        }
+        const W = Math.max(560, n * 46), H = 240, pad = { t: 20, r: 16, b: 34, l: 56 };
+        const maxVal = Math.max(1, ...gar, ...dev);
+        const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+        const x = (idx) => pad.l + (n === 1 ? iw / 2 : (idx / (n - 1)) * iw);
+        const y = (v) => pad.t + ih - (v / maxVal) * ih;
+        const pts = (arr) => arr.map((v, idx) => `${x(idx).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+        const area = (arr) => `${pad.l},${(pad.t + ih).toFixed(1)} ${pts(arr)} ${(pad.l + iw).toFixed(1)},${(pad.t + ih).toFixed(1)}`;
+        const circles = (arr, cor) => arr.map((v, idx) => `<circle cx="${x(idx).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="${cor}"><title>${labels[idx]}: ${_asFmtBRLfull(v)}</title></circle>`).join('');
+        let grid = '';
+        for (let g = 0; g <= 3; g++) {
+            const val = (maxVal / 3) * g;
+            const yy = y(val);
+            grid += `<line x1="${pad.l}" y1="${yy.toFixed(1)}" x2="${(pad.l + iw).toFixed(1)}" y2="${yy.toFixed(1)}" stroke="var(--border)" stroke-width="1" opacity="0.5"/>`;
+            grid += `<text x="${pad.l - 6}" y="${(yy + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text-sec)">${_asFmtBRL(val)}</text>`;
+        }
+        const step = Math.ceil(n / 15);
+        let xlabels = '';
+        labels.forEach((lb, idx) => { if (idx % step === 0 || idx === n - 1) xlabels += `<text x="${x(idx).toFixed(1)}" y="${H - 12}" text-anchor="middle" font-size="9" fill="var(--text-sec)">${lb}</text>`; });
+        const svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; min-width:${W}px;" xmlns="http://www.w3.org/2000/svg">
+            ${grid}
+            <polygon points="${area(gar)}" fill="#2F81F7" opacity="0.12"/>
+            <polygon points="${area(dev)}" fill="#f0883e" opacity="0.12"/>
+            <polyline points="${pts(gar)}" fill="none" stroke="#2F81F7" stroke-width="2"/>
+            <polyline points="${pts(dev)}" fill="none" stroke="#f0883e" stroke-width="2"/>
+            ${circles(gar, '#2F81F7')}
+            ${circles(dev, '#f0883e')}
+            ${xlabels}
+        </svg>`;
+        return `<div style="overflow-x:auto;">${svg}</div><div style="display:flex; gap:1.2rem; margin-top:0.6rem; font-size:0.82rem;"><span><span style="display:inline-block; width:12px; height:12px; background:#2F81F7; border-radius:2px; margin-right:0.3rem;"></span>Garantia</span><span><span style="display:inline-block; width:12px; height:12px; background:#f0883e; border-radius:2px; margin-right:0.3rem;"></span>Devolução</span></div>`;
     }
 
     function renderDevSaque() {
@@ -4925,7 +5227,7 @@ const app = (function() {
         if (!cont) return;
         const busca = (document.getElementById('dev-saq-busca') ? document.getElementById('dev-saq-busca').value : '').toLowerCase().trim();
         // Saque mostra devoluções liberadas (Concluída) e as já finalizadas
-        let lista = (state.devCheckins || []).filter(c => c.status === 'Concluída' || c.status === 'Devolução Finalizada');
+        let lista = (state.devCheckins || []).filter(c => c.status === 'Concluída');
         if (busca) lista = lista.filter(c => (c.protocolo || '').toLowerCase().includes(busca) || (c.cliente || '').toLowerCase().includes(busca) || (c.recebidoPor || '').toLowerCase().includes(busca));
         const countEl = document.getElementById('dev-saq-count');
         if (countEl) countEl.textContent = `${lista.length} devolução(ões)`;
@@ -5110,6 +5412,81 @@ const app = (function() {
         closeAllDrawers();
         await carregarDevCheckins();
         if (typeof renderDevDescarte === 'function') renderDevDescarte();
+        if (typeof renderDevSaque === 'function') renderDevSaque();
+        if (typeof renderDevFinalizados === 'function') renderDevFinalizados();
+    }
+
+    // ================= SAC: FINALIZADOS (somente leitura) =================
+    let _finCheckinAtual = null;
+
+    function renderDevFinalizados() {
+        const cont = document.getElementById('sac-fin-lista');
+        if (!cont) return;
+        const busca = (document.getElementById('sac-fin-busca') ? document.getElementById('sac-fin-busca').value : '').toLowerCase().trim();
+        let lista = (state.devCheckins || []).filter(c => c.status === 'Devolução Finalizada');
+        if (busca) lista = lista.filter(c => (c.protocolo || '').toLowerCase().includes(busca) || (c.cliente || '').toLowerCase().includes(busca) || (c.recebidoPor || '').toLowerCase().includes(busca));
+        const countEl = document.getElementById('sac-fin-count');
+        if (countEl) countEl.textContent = `${lista.length} devolução(ões)`;
+        cont.innerHTML = '';
+        if (lista.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec); padding:1rem;">Nenhuma devolução finalizada.</p>'; return; }
+        lista.forEach(c => {
+            const itens = state.devItens.filter(i => i.checkinId === c.id);
+            const card = document.createElement('div');
+            card.style.cssText = 'border:1px solid var(--border); border-radius:8px; padding:1rem; cursor:pointer; transition:border-color 0.15s;';
+            card.onmouseover = () => card.style.borderColor = 'var(--accent)';
+            card.onmouseout = () => card.style.borderColor = 'var(--border)';
+            card.onclick = () => abrirFinalizado(c.id);
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
+                    <div style="font-weight:700; font-size:1.1rem;">✅ ${escapeWms(c.protocolo || 's/ protocolo')}</div>
+                    <span style="font-size:0.72rem; font-weight:600; color:var(--success); border:1px solid var(--success); padding:0.15rem 0.5rem; border-radius:10px; white-space:nowrap;">Finalizada</span>
+                </div>
+                <div style="margin-top:0.5rem; font-size:0.88rem;"><strong>Cliente:</strong> ${escapeWms(c.cliente) || '—'}</div>
+                <div style="font-size:0.85rem; color:var(--text-sec);">Recebido por ${escapeWms(c.recebidoPor)}${c.conferente ? ' · Devolução: ' + escapeWms(c.conferente) : ''}</div>
+                <div style="font-size:0.85rem; color:var(--text-sec);">${escapeWms(c.dataRecebimento)} · ${escapeWms(c.expedicao) || '—'} · ${itens.length} item(ns)</div>
+            `;
+            cont.appendChild(card);
+        });
+    }
+
+    function abrirFinalizado(checkinId) {
+        const c = state.devCheckins.find(x => x.id === checkinId);
+        if (!c) return;
+        _finCheckinAtual = c;
+        _saqCheckinAtual = c; // permite reaproveitar o gerarPdfSac()
+        document.getElementById('sac-fin-protocolo').textContent = c.protocolo || '';
+        document.getElementById('sac-fin-info').innerHTML = `<strong>Cliente:</strong> ${escapeWms(c.cliente) || '—'} · <strong>Recebido por:</strong> ${escapeWms(c.recebidoPor)}${c.conferente ? ' · <strong>Devolução:</strong> ' + escapeWms(c.conferente) : ''} · <strong>${escapeWms(c.expedicao) || '—'}</strong>`;
+        renderFinalizadoItens();
+        openDrawer('drawer-sac-finalizado');
+    }
+
+    function renderFinalizadoItens() {
+        const cont = document.getElementById('sac-fin-itens');
+        if (!cont || !_finCheckinAtual) return;
+        const itens = state.devItens.filter(i => i.checkinId === _finCheckinAtual.id);
+        cont.innerHTML = '';
+        if (itens.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec); padding:0.8rem;">Nenhum item.</p>'; return; }
+        const fmt = (v) => (v != null && v !== '' ? 'R$ ' + Number(v).toFixed(2) : '—');
+        itens.forEach(i => {
+            const prod = state.devProdutos.find(p => p.id === i.produtoId) || { referencia: prodRefSac(i), descricao: prodDescSac(i) };
+            const dataCred = i.sacDataCredito ? String(i.sacDataCredito).split('-').reverse().join('/') : '—';
+            const card = document.createElement('div');
+            card.style.cssText = 'border:1px solid var(--border); border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.6rem;';
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:baseline; gap:0.5rem; flex-wrap:wrap;">
+                    <div style="font-weight:700;">${escapeWms(prod ? prod.referencia : '?')} <span style="font-weight:400; color:var(--text-sec);">— ${escapeWms(prod ? prod.descricao : '')}</span></div>
+                    <div style="font-size:0.85rem; color:var(--text-sec);">Qtd: <strong>${i.quantidade || 0}</strong></div>
+                </div>
+                <div style="font-size:0.85rem; line-height:1.8; margin-top:0.4rem;">
+                    <span style="margin-right:1.2rem;">Método: <strong>${escapeWms(i.sacMetodo || '—')}</strong></span>
+                    <span style="margin-right:1.2rem;">Garantia: <strong>${escapeWms(i.sacGarantia || '—')}</strong></span>
+                    <span style="margin-right:1.2rem;">Solução: <strong>${escapeWms(i.solucao || '—')}</strong></span>
+                    <span style="margin-right:1.2rem;">Vlr Crédito: <strong>${fmt(i.sacValorCredito)}</strong></span>
+                    <span>Data Crédito: <strong>${dataCred}</strong></span>
+                    ${i.observacaoSac ? `<div style="margin-top:0.2rem;">Obs. SAC: <em>${escapeWms(i.observacaoSac)}</em></div>` : ''}
+                </div>`;
+            cont.appendChild(card);
+        });
     }
 
     function limparCamposItemDev() {
@@ -6747,7 +7124,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         const login = document.getElementById('user-login').value.trim();
         const senha = document.getElementById('user-senha').value.trim();
         if(!nome || !login) { avisar('Preencha Nome e Login.'); return; }
-        const permissoes = { dashboard: { ver: document.getElementById('perm-dash-ver').checked }, pedidos: { ver: document.getElementById('perm-pedidos-ver').checked, editar: document.getElementById('perm-pedidos-editar').checked }, operacional: { sep: document.getElementById('perm-op-sep').checked, conf: document.getElementById('perm-op-conf').checked }, relatorio: { ver: document.getElementById('perm-relatorio-ver').checked }, atendimento: { ver: document.getElementById('perm-atend-ver').checked, editar: document.getElementById('perm-atend-editar').checked }, financeiro: { ver: document.getElementById('perm-financeiro-ver') ? document.getElementById('perm-financeiro-ver').checked : true }, reposicao: { ver: document.getElementById('perm-repo-ver').checked, editar: document.getElementById('perm-repo-editar').checked }, config: { ver: document.getElementById('perm-config-ver').checked, editar: document.getElementById('perm-config-editar').checked }, estoque: { ver: document.getElementById('perm-estoque-ver').checked, editar: document.getElementById('perm-estoque-editar').checked }, devolucao: { ver: document.getElementById('perm-devolucao-ver').checked, editar: document.getElementById('perm-devolucao-editar').checked }, importacao: { ver: document.getElementById('perm-importacao-ver').checked, editar: document.getElementById('perm-importacao-editar').checked }, alteracao: { ver: document.getElementById('perm-alteracao-ver').checked }, produtividade: { ver: document.getElementById('perm-produtividade-ver').checked }, registro: { ver: document.getElementById('perm-registro-ver').checked, editar: document.getElementById('perm-registro-editar').checked }, fiscal: { ver: document.getElementById('perm-fiscal-ver').checked, editar: document.getElementById('perm-fiscal-editar').checked }, sac: { ver: document.getElementById('perm-sac-ver').checked, editar: document.getElementById('perm-sac-editar').checked } };
+        const permissoes = { dashboard: { ver: document.getElementById('perm-dash-ver').checked }, pedidos: { ver: document.getElementById('perm-pedidos-ver').checked, editar: document.getElementById('perm-pedidos-editar').checked }, operacional: { sep: document.getElementById('perm-op-sep').checked, conf: document.getElementById('perm-op-conf').checked }, relatorio: { ver: document.getElementById('perm-relatorio-ver').checked }, atendimento: { ver: document.getElementById('perm-atend-ver').checked, editar: document.getElementById('perm-atend-editar').checked }, financeiro: { ver: document.getElementById('perm-financeiro-ver') ? document.getElementById('perm-financeiro-ver').checked : true }, reposicao: { ver: document.getElementById('perm-repo-ver').checked, editar: document.getElementById('perm-repo-editar').checked }, config: { ver: document.getElementById('perm-config-ver').checked, editar: document.getElementById('perm-config-editar').checked }, estoque: { ver: document.getElementById('perm-estoque-ver').checked, editar: document.getElementById('perm-estoque-editar').checked }, devolucao: { ver: document.getElementById('perm-devolucao-ver').checked, editar: document.getElementById('perm-devolucao-editar').checked }, importacao: { ver: document.getElementById('perm-importacao-ver').checked, editar: document.getElementById('perm-importacao-editar').checked }, alteracao: { ver: document.getElementById('perm-alteracao-ver').checked }, produtividade: { ver: document.getElementById('perm-produtividade-ver').checked }, registro: { ver: document.getElementById('perm-registro-ver').checked, editar: document.getElementById('perm-registro-editar').checked }, fiscal: { ver: document.getElementById('perm-fiscal-ver').checked, editar: document.getElementById('perm-fiscal-editar').checked }, sac: { ver: document.getElementById('perm-sac-ver').checked, editar: document.getElementById('perm-sac-editar').checked }, analiseSac: { ver: document.getElementById('perm-analise-sac-ver').checked, editar: document.getElementById('perm-analise-sac-editar').checked } };
 
         if(id) {
             // EDITAR: só nome, perfil e permissões (senha não muda por aqui)
@@ -7707,7 +8084,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         carregarDevListas, renderDevListas, addDevLista, excluirDevLista,
         carregarDevCheckins, renderDevCheckin, gerarProtocoloCheckin, salvarCheckin, editarItemDevolucao,
         renderDevRegistro, abrirRelatorioDevolucao, onDevCodigoInput, onDevProdutoInput, addItemDevolucao, renderItensRelatorio, removerItemDevolucao, excluirDevolucao,
-        salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac,
+                salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, switchAnaliseSacSubtab, renderAnaliseSacDashboard, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac, finalizarSacCard, renderDevFinalizados, abrirFinalizado,
         finalizarDevolucaoSaque, renderDevDescarte, exportarDescartePDF, exportarDescarteExcel,
         carregarWmsEnderecos, renderWmsEnderecos, abrirModalWmsEndereco, salvarWmsEndereco, excluirWmsEndereco, verWmsQr, imprimirWmsQr,
         carregarWmsSaldos, renderWmsSaldos, renderWmsTotais, abrirModalWmsSaldo, salvarWmsSaldo, excluirWmsSaldo,
