@@ -1682,6 +1682,7 @@ body.monitor-mode .queue-card button { display: none !important; }
             </div>
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
+                <button class="btn btn-warning" id="btn-reabrir-fin" style="display:none;" onclick="app.reabrirDevolucao()">🔓 Reabrir devolução</button>
                 <button class="btn btn-primary" onclick="app.gerarPdfSac()">📄 Gerar PDF</button>
             </div>
         </div>
@@ -5457,7 +5458,24 @@ const app = (function() {
         document.getElementById('sac-fin-protocolo').textContent = c.protocolo || '';
         document.getElementById('sac-fin-info').innerHTML = `<strong>Cliente:</strong> ${escapeWms(c.cliente) || '—'} · <strong>Recebido por:</strong> ${escapeWms(c.recebidoPor)}${c.conferente ? ' · <strong>Devolução:</strong> ' + escapeWms(c.conferente) : ''} · <strong>${escapeWms(c.expedicao) || '—'}</strong>`;
         renderFinalizadoItens();
+        const btnReabrir = document.getElementById('btn-reabrir-fin');
+        if (btnReabrir) btnReabrir.style.display = (state.currentUser && state.currentUser.perfil === 'admin') ? '' : 'none';
         openDrawer('drawer-sac-finalizado');
+    }
+
+    async function reabrirDevolucao() {
+        if (!_finCheckinAtual) return;
+        if (!state.currentUser || state.currentUser.perfil !== 'admin') { avisar('Apenas o administrador pode reabrir devoluções finalizadas.'); return; }
+        const c = _finCheckinAtual;
+        const ok = await confirmar(`Reabrir a devolução ${c.protocolo || ''}?\n\nEla volta para a aba SAC e poderá ser editada novamente.`);
+        if (!ok) return;
+        const { error } = await db.from('dev_checkins').update({ status: 'Concluída' }).eq('id', c.id);
+        if (error) { avisar('Erro ao reabrir: ' + error.message); return; }
+        avisar('Devolução reaberta! Voltou para a aba SAC.');
+        closeAllDrawers();
+        await carregarDevCheckins();
+        if (typeof renderDevSaque === 'function') renderDevSaque();
+        if (typeof renderDevFinalizados === 'function') renderDevFinalizados();
     }
 
     function renderFinalizadoItens() {
@@ -8084,7 +8102,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         carregarDevListas, renderDevListas, addDevLista, excluirDevLista,
         carregarDevCheckins, renderDevCheckin, gerarProtocoloCheckin, salvarCheckin, editarItemDevolucao,
         renderDevRegistro, abrirRelatorioDevolucao, onDevCodigoInput, onDevProdutoInput, addItemDevolucao, renderItensRelatorio, removerItemDevolucao, excluirDevolucao,
-                salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, switchAnaliseSacSubtab, renderAnaliseSacDashboard, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac, finalizarSacCard, renderDevFinalizados, abrirFinalizado,
+                salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, switchAnaliseSacSubtab, renderAnaliseSacDashboard, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac, finalizarSacCard, renderDevFinalizados, abrirFinalizado, reabrirDevolucao,
         finalizarDevolucaoSaque, renderDevDescarte, exportarDescartePDF, exportarDescarteExcel,
         carregarWmsEnderecos, renderWmsEnderecos, abrirModalWmsEndereco, salvarWmsEndereco, excluirWmsEndereco, verWmsQr, imprimirWmsQr,
         carregarWmsSaldos, renderWmsSaldos, renderWmsTotais, abrirModalWmsSaldo, salvarWmsSaldo, excluirWmsSaldo,
