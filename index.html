@@ -1239,16 +1239,13 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <div id="sep-conf-info" style="margin-bottom:1rem;"></div>
 
                 <div class="form-group">
-                    <label>Confirmar produto por QR *</label>
-                    <div id="sep-conf-qr-status" style="padding:0.6rem; border-radius:6px; background:var(--hover-bg); font-size:0.9rem; margin-bottom:0.5rem;">🔒 Produto ainda não confirmado.</div>
-                    <button type="button" class="btn btn-secondary" id="sep-conf-scan-btn" onclick="app.iniciarScannerSep()" style="width:100%;">📷 Escanear QR do Produto</button>
+                    <label>Separar por leitura de caixas *</label>
+                    <div id="sep-conf-qr-status" style="padding:0.6rem; border-radius:6px; background:var(--hover-bg); font-size:0.9rem; margin-bottom:0.5rem;">🔒 Escaneie as caixas deste produto.</div>
+                    <div id="sep-conf-contador" style="padding:0.6rem 0.8rem; border:1px solid var(--border); border-radius:6px; margin-bottom:0.5rem; font-size:0.95rem; text-align:center;"></div>
+                    <button type="button" class="btn btn-secondary" id="sep-conf-scan-btn" onclick="app.iniciarScannerSep()" style="width:100%;">📷 Escanear caixa</button>
                     <div id="sep-conf-reader" style="width:100%; margin-top:0.5rem;"></div>
-                </div>
-
-                <div class="form-group">
-                    <label>Quantidade separada (peças) *</label>
-                    <input type="number" id="sep-conf-qtd" class="form-control" min="1" placeholder="0" disabled>
-                    <small style="color:var(--text-sec); display:block; margin-top:0.3rem;">Escaneie o QR do produto para liberar este campo.</small>
+                    <div id="sep-conf-log" style="max-height:160px; overflow-y:auto; margin-top:0.5rem;"></div>
+                    <input type="hidden" id="sep-conf-qtd">
                 </div>
             </div>
             <div class="drawer-footer">
@@ -4741,6 +4738,18 @@ const app = (function() {
         });
     }
 
+    let _sepCaixasBip = 0;
+    let _sepCaixasNec = 0;
+    let _sepPpcAtual = 1;
+
+    function renderSepConfContador() {
+        const el = document.getElementById('sep-conf-contador');
+        if (!el || !_sepItemAtual) return;
+        const pecas = _sepCaixasBip * _sepPpcAtual;
+        const ok = _sepCaixasNec > 0 && _sepCaixasBip >= _sepCaixasNec;
+        el.innerHTML = `<strong style="color:${ok ? 'var(--success,#28a745)' : 'var(--accent)'};">${_sepCaixasBip}/${_sepCaixasNec} caixa(s)</strong> · ${pecas} pçs${ok ? ' ✅' : ''}`;
+    }
+
     function abrirConfirmarItemSep(itemId) {
         const sep = document.getElementById('sep-sep-separador').value;
         if (!sep) { avisar('Selecione o separador antes de começar.'); return; }
@@ -4748,17 +4757,22 @@ const app = (function() {
         if (!item) return;
         _sepItemAtual = item;
         _sepQrConfirmado = false;
-        document.getElementById('sep-conf-info').innerHTML = `<div style="font-weight:700; font-size:1.1rem;">${escapeWms(item.referencia)}</div><div style="color:var(--text-sec); font-size:0.9rem;">${escapeWms(item.descricao)}</div><div style="margin-top:0.4rem;">Solicitado: <strong>${item.qtdSolicitada} pçs</strong></div>`;
+        _sepPpcAtual = pecasPorCaixaDe(item);
+        _sepCaixasNec = Math.ceil((item.qtdSolicitada || 0) / _sepPpcAtual);
+        _sepCaixasBip = 0;
+        document.getElementById('sep-conf-info').innerHTML = `<div style="font-weight:700; font-size:1.1rem;">${escapeWms(item.referencia)}</div><div style="color:var(--text-sec); font-size:0.9rem;">${escapeWms(item.descricao)}</div><div style="margin-top:0.4rem;">Solicitado: <strong>${item.qtdSolicitada} pçs</strong> · Caixa: <strong>${_sepPpcAtual} pçs</strong> · Necessário: <strong>${_sepCaixasNec} caixa(s)</strong></div>`;
         const st = document.getElementById('sep-conf-qr-status');
-        st.innerHTML = '🔒 Produto ainda não confirmado.';
+        st.innerHTML = '🔒 Escaneie as caixas deste produto.';
         st.style.background = 'var(--hover-bg)';
-        const qtd = document.getElementById('sep-conf-qtd');
-        qtd.value = item.qtdSeparada > 0 ? item.qtdSeparada : '';
-        qtd.disabled = true;
+        document.getElementById('sep-conf-qtd').value = '';
         document.getElementById('sep-conf-btn').disabled = true;
         document.getElementById('sep-conf-reader').innerHTML = '';
+        const log = document.getElementById('sep-conf-log'); if (log) log.innerHTML = '';
+        renderSepConfContador();
         openDrawer('drawer-sep-confirmar');
     }
+
+    let _sepUltimaLeitura = 0;
 
     function iniciarScannerSep() {
         if (!_sepItemAtual) return;
@@ -4771,30 +4785,43 @@ const app = (function() {
         _scannerSepInstance.start(
             { facingMode: 'environment' },
             { fps: 10, qrbox: { width: 220, height: 220 } },
-            (decodedText) => {
-                const lido = (decodedText || '').trim();
-                const st = document.getElementById('sep-conf-qr-status');
-                if (lido === esperado) {
-                    _sepQrConfirmado = true;
-                    st.innerHTML = `✅ Produto <strong>${escapeWms(_sepItemAtual.referencia)}</strong> confirmado!`;
-                    st.style.background = 'rgba(34,197,94,0.15)';
-                    const qtd = document.getElementById('sep-conf-qtd');
-                    qtd.disabled = false;
-                    if (!qtd.value) qtd.value = _sepItemAtual.qtdSolicitada;
-                    qtd.focus();
-                    document.getElementById('sep-conf-btn').disabled = false;
-                    pararScannerSep();
-                } else {
-                    st.innerHTML = `❌ QR lido (<strong>${escapeWms(lido)}</strong>) não corresponde ao produto <strong>${escapeWms(_sepItemAtual.referencia)}</strong>. Tente novamente.`;
-                    st.style.background = 'rgba(239,68,68,0.15)';
-                    if (typeof tocarAlerta === 'function') tocarAlerta(3);
-                }
-            },
+            (decodedText) => { processarCaixaSep((decodedText || '').trim(), esperado); },
             () => { /* ignora frames sem QR */ }
         ).catch(err => {
             avisar('Não foi possível acessar a câmera: ' + err);
             readerEl.innerHTML = '';
         });
+    }
+
+    function processarCaixaSep(lido, esperado) {
+        const agora = Date.now();
+        if (agora - _sepUltimaLeitura < 1200) return;
+        _sepUltimaLeitura = agora;
+        const st = document.getElementById('sep-conf-qr-status');
+        const log = document.getElementById('sep-conf-log');
+        const addLog = (html, cor) => { if (log) { const d = document.createElement('div'); d.style.cssText = `padding:0.3rem 0.6rem; border-radius:4px; margin-bottom:0.3rem; font-size:0.85rem; background:${cor};`; d.innerHTML = html; log.prepend(d); } };
+        if (lido !== esperado) {
+            addLog(`❌ QR <strong>${escapeWms(lido)}</strong> não é do produto <strong>${escapeWms(_sepItemAtual.referencia)}</strong>.`, 'rgba(239,68,68,0.15)');
+            if (typeof tocarAlerta === 'function') tocarAlerta(3);
+            return;
+        }
+        if (_sepCaixasBip >= _sepCaixasNec) {
+            addLog(`⚠️ Você já bipou as ${_sepCaixasNec} caixa(s) necessárias deste produto.`, 'rgba(245,158,11,0.18)');
+            if (typeof tocarAlerta === 'function') tocarAlerta(3);
+            return;
+        }
+        _sepCaixasBip++;
+        _sepQrConfirmado = true;
+        addLog(`✅ Caixa ${_sepCaixasBip}/${_sepCaixasNec} (${_sepCaixasBip * _sepPpcAtual} pçs)`, 'rgba(34,197,94,0.15)');
+        if (typeof tocarAlerta === 'function') tocarAlerta(1);
+        renderSepConfContador();
+        if (_sepCaixasBip >= _sepCaixasNec) {
+            st.innerHTML = `✅ Todas as ${_sepCaixasNec} caixa(s) bipadas! Confirme a separação.`;
+            st.style.background = 'rgba(34,197,94,0.15)';
+            document.getElementById('sep-conf-qtd').value = _sepCaixasBip * _sepPpcAtual;
+            document.getElementById('sep-conf-btn').disabled = false;
+            pararScannerSep();
+        }
     }
 
     function pararScannerSep() {
