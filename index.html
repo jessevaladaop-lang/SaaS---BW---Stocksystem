@@ -3551,7 +3551,7 @@ const app = (function() {
         if (subtab === 'wms-saldos' && typeof renderWmsSaldos === 'function') renderWmsSaldos();
         if (subtab === 'wms-separacao' && typeof renderWmsSeparacao === 'function') renderWmsSeparacao();
         if (subtab === 'wms-pedidos-qr' && typeof carregarSepPedidos === 'function') carregarSepPedidos();
-        if (subtab === 'wms-expedicao' && typeof renderExpedicao === 'function') { if (typeof carregarSepPedidos === 'function') carregarSepPedidos(); else renderExpedicao(); }
+        if (subtab === 'wms-expedicao') { if (typeof carregarSepPedidos === 'function') { carregarSepPedidos().then(() => { if (typeof renderExpedicao === 'function') renderExpedicao(); }); } else if (typeof renderExpedicao === 'function') { renderExpedicao(); } }
     }
 
     // --- DEVOLUÇÃO: troca de sub-aba ---
