@@ -1067,6 +1067,7 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <button class="wms-subtab" data-subtab="wms-pedidos-qr" onclick="app.switchWmsSubtab('wms-pedidos-qr')">📋 Pedidos QR</button>
                 <button class="wms-subtab" data-subtab="wms-conferencia" onclick="app.switchWmsSubtab('wms-conferencia')">🔎 Conferência</button>
                 <button class="wms-subtab" data-subtab="wms-expedicao" onclick="app.switchWmsSubtab('wms-expedicao')">🚀 Expedição</button>
+                <button class="wms-subtab" data-subtab="wms-finalizados" onclick="app.switchWmsSubtab('wms-finalizados')">🏁 Finalizados</button>
                 <button class="wms-subtab" data-subtab="wms-concluidas" onclick="app.switchWmsSubtab('wms-concluidas')">✅ Concluídas</button>
             </div>
 
@@ -1168,6 +1169,14 @@ body.monitor-mode .queue-card button { display: none !important; }
                     <span id="sep-exp-count" style="color:var(--text-sec); font-size:0.85rem;"></span>
                 </div>
                 <div id="sep-exp-lista" style="display:flex; flex-direction:column; gap:0.6rem;"></div>
+            </div>
+
+            <div id="wms-finalizados" class="wms-subtab-content" style="display:none;">
+                <div class="flex gap-2 flex-wrap" style="margin-bottom:1rem; align-items:center;">
+                    <input type="text" id="sep-fin-busca" class="form-control" placeholder="🔍 Buscar por número, cliente ou vendedor..." style="max-width:320px;" oninput="app.renderWmsFinalizados()">
+                    <span id="sep-fin-count" style="color:var(--text-sec); font-size:0.85rem;"></span>
+                </div>
+                <div id="sep-fin-lista" style="display:flex; flex-direction:column; gap:0.6rem;"></div>
             </div>
 
             <div id="wms-concluidas" class="wms-subtab-content" style="display:none;">
@@ -3266,7 +3275,7 @@ const app = (function() {
         const cont = document.getElementById('sep-exp-lista');
         if (!cont) return;
         const busca = (document.getElementById('sep-exp-busca') ? document.getElementById('sep-exp-busca').value : '').toLowerCase().trim();
-        let lista = (state.sepPedidos || []).filter(p => p.status === 'Concluído' || p.status === 'Expedido');
+        let lista = (state.sepPedidos || []).filter(p => p.status === 'Concluído');
         if (busca) lista = lista.filter(p => (p.numero + ' ' + p.cliente + ' ' + p.vendedor).toLowerCase().includes(busca));
         const countEl = document.getElementById('sep-exp-count');
         if (countEl) countEl.textContent = `${lista.length} pedido(s)`;
@@ -3279,7 +3288,7 @@ const app = (function() {
             const card = document.createElement('div');
             card.className = 'card';
             card.style.cssText = `display:flex; justify-content:space-between; align-items:center; padding:0.8rem 1rem; flex-wrap:wrap; gap:0.5rem; ${expedido ? 'border-color:var(--success,#28a745);' : ''}`;
-            card.innerHTML = `<div><div style="font-weight:700; font-size:1.05rem;">${escapeWms(p.numero)}</div><div style="color:var(--text-sec); font-size:0.88rem;">${escapeWms(p.cliente) || 'Sem cliente'}${p.vendedor ? ' · Vend: ' + escapeWms(p.vendedor) : ''}</div><div style="font-size:0.82rem; margin-top:0.3rem;">${itens.length} produto(s) · ${totalPecas} pçs${p.separador ? ' · Separador: ' + escapeWms(p.separador) : ''}</div></div><div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;"><span style="font-size:0.8rem; font-weight:600; color:${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; border:1px solid ${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; padding:0.2rem 0.6rem; border-radius:12px;">${expedido ? '✅ Expedido' : 'A expedir'}</span><button class="btn btn-secondary" style="padding:0.4rem 0.8rem;" onclick="app.verQrPedido('${p.id}')">📱 QR do pedido</button>${expedido ? '' : `<button class="btn btn-primary req-estoque-edit" style="padding:0.4rem 0.8rem;" onclick="app.abrirExpedicao('${p.id}')">🚀 Expedir</button>`}</div>`;
+            card.innerHTML = `<div><div style="font-weight:700; font-size:1.05rem;">${escapeWms(p.numero)}</div><div style="color:var(--text-sec); font-size:0.88rem;">${escapeWms(p.cliente) || 'Sem cliente'}${p.vendedor ? ' · Vend: ' + escapeWms(p.vendedor) : ''}</div><div style="font-size:0.82rem; margin-top:0.3rem;">${itens.length} produto(s) · ${totalPecas} pçs${p.separador ? ' · Separador: ' + escapeWms(p.separador) : ''}</div></div><div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;"><span style="font-size:0.8rem; font-weight:600; color:${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; border:1px solid ${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; padding:0.2rem 0.6rem; border-radius:12px;">${expedido ? '✅ Expedido' : 'A expedir'}</span><button class="btn btn-secondary" style="padding:0.4rem 0.8rem;" onclick="app.verQrPedido('${p.id}')">📱 QR do pedido</button>${expedido ? '' : `<button class="btn btn-primary req-estoque-edit" style="padding:0.4rem 0.8rem;" onclick="app.abrirExpedicao('${p.id}')">🚀 Expedir</button>`}<button class="btn-icon req-estoque-edit" title="Excluir" style="color:var(--danger)" onclick="app.excluirSepPedido('${p.id}')">🗑️</button></div>`;
             cont.appendChild(card);
         });
     }
@@ -3482,7 +3491,7 @@ const app = (function() {
         if (itens.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec); padding:0.8rem;">Todos os itens já estão separados.</p>'; return; }
         cont.innerHTML = itens.map(i => {
             const falta = (i.qtdSolicitada || 0) - (i.qtdSeparada || 0);
-            return `<div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; padding:0.5rem 0.7rem; border-bottom:1px solid var(--border);"><div><strong>${escapeWms(i.referencia)}</strong> <span style="color:var(--text-sec); font-size:0.82rem;">— falta ${falta} pçs</span></div><input type="number" class="form-control mc-qty" data-item="${i.id}" data-ref="${escapeWms(i.referencia)}" data-falta="${falta}" min="0" max="${falta}" placeholder="0" style="width:100px;"></div>`;
+            return `<div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; padding:0.5rem 0.7rem; border-bottom:1px solid var(--border);"><div style="flex:1; min-width:0;"><div><strong>${escapeWms(i.referencia)}</strong>${i.descricao ? ' — ' + escapeWms(i.descricao) : ''}</div><div style="color:var(--text-sec); font-size:0.8rem;">falta ${falta} pçs</div></div><input type="number" class="form-control mc-qty" data-item="${i.id}" data-ref="${escapeWms(i.referencia)}" data-falta="${falta}" min="0" max="${falta}" placeholder="0" style="width:100px;"></div>`;
         }).join('');
     }
 
@@ -3614,7 +3623,7 @@ const app = (function() {
             card.className = 'card';
             card.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:0.8rem 1rem; flex-wrap:wrap; gap:0.5rem; cursor:pointer;';
             card.onclick = () => abrirConferencia(p.id);
-            card.innerHTML = `<div><div style="font-weight:700; font-size:1.05rem;">${escapeWms(p.numero)}</div><div style="color:var(--text-sec); font-size:0.88rem;">${escapeWms(p.cliente) || 'Sem cliente'}${p.separador ? ' · Separador: ' + escapeWms(p.separador) : ''}</div><div style="font-size:0.82rem; margin-top:0.3rem;">${itens.length} produto(s) · <strong>${avulsas} pçs avulsas</strong> para montar</div></div><button class="btn btn-primary req-estoque-edit" style="padding:0.4rem 0.8rem;" onclick="event.stopPropagation(); app.abrirConferencia('${p.id}')">📦 Montar caixas</button>`;
+            card.innerHTML = `<div><div style="font-weight:700; font-size:1.05rem;">${escapeWms(p.numero)}</div><div style="color:var(--text-sec); font-size:0.88rem;">${escapeWms(p.cliente) || 'Sem cliente'}${p.separador ? ' · Separador: ' + escapeWms(p.separador) : ''}</div><div style="font-size:0.82rem; margin-top:0.3rem;">${itens.length} produto(s) · <strong>${avulsas} pçs avulsas</strong> para montar</div></div><button class="btn btn-primary req-estoque-edit" style="padding:0.4rem 0.8rem;" onclick="event.stopPropagation(); app.abrirConferencia('${p.id}')">📦 Montar caixas</button><button class="btn-icon req-estoque-edit" title="Excluir" style="color:var(--danger)" onclick="event.stopPropagation(); app.excluirSepPedido('${p.id}')">🗑️</button>`;
             cont.appendChild(card);
         });
     }
@@ -3624,6 +3633,27 @@ const app = (function() {
         if (!p) return;
         _sepPedidoAtual = p;
         abrirMontarCaixa();
+    }
+
+    function renderWmsFinalizados() {
+        const cont = document.getElementById('sep-fin-lista');
+        if (!cont) return;
+        const busca = (document.getElementById('sep-fin-busca') ? document.getElementById('sep-fin-busca').value : '').toLowerCase().trim();
+        let lista = (state.sepPedidos || []).filter(p => p.status === 'Expedido');
+        if (busca) lista = lista.filter(p => (p.numero + ' ' + p.cliente + ' ' + p.vendedor).toLowerCase().includes(busca));
+        const countEl = document.getElementById('sep-fin-count');
+        if (countEl) countEl.textContent = `${lista.length} pedido(s)`;
+        cont.innerHTML = '';
+        if (lista.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec);">Nenhum pedido finalizado.</p>'; return; }
+        lista.forEach(p => {
+            const itens = (state.sepItens || []).filter(i => i.pedidoId === p.id);
+            const totalPecas = itens.reduce((sm, i) => sm + (i.qtdSeparada || 0), 0);
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:0.8rem 1rem; flex-wrap:wrap; gap:0.5rem; border-color:var(--success,#28a745);';
+            card.innerHTML = `<div><div style="font-weight:700; font-size:1.05rem;">${escapeWms(p.numero)}</div><div style="color:var(--text-sec); font-size:0.88rem;">${escapeWms(p.cliente) || 'Sem cliente'}${p.vendedor ? ' · Vend: ' + escapeWms(p.vendedor) : ''}</div><div style="font-size:0.82rem; margin-top:0.3rem;">${itens.length} produto(s) · ${totalPecas} pçs${p.separador ? ' · Separador: ' + escapeWms(p.separador) : ''}</div></div><div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;"><span style="font-size:0.8rem; font-weight:600; color:var(--success,#28a745); border:1px solid var(--success,#28a745); padding:0.2rem 0.6rem; border-radius:12px;">🏁 Expedido</span><button class="btn btn-secondary" style="padding:0.4rem 0.8rem;" onclick="app.verQrPedido('${p.id}')">📱 QR</button><button class="btn-icon req-estoque-edit" title="Excluir" style="color:var(--danger)" onclick="app.excluirSepPedido('${p.id}')">🗑️</button></div>`;
+            cont.appendChild(card);
+        });
     }
 
     function switchWmsSubtab(subtab) {
@@ -3640,6 +3670,7 @@ const app = (function() {
         if (subtab === 'wms-pedidos-qr' && typeof carregarSepPedidos === 'function') carregarSepPedidos();
         if (subtab === 'wms-conferencia') { if (typeof carregarSepPedidos === 'function') { carregarSepPedidos().then(() => { if (typeof renderConferencia === 'function') renderConferencia(); }); } else if (typeof renderConferencia === 'function') { renderConferencia(); } }
         if (subtab === 'wms-expedicao') { if (typeof carregarSepPedidos === 'function') { carregarSepPedidos().then(() => { if (typeof renderExpedicao === 'function') renderExpedicao(); }); } else if (typeof renderExpedicao === 'function') { renderExpedicao(); } }
+        if (subtab === 'wms-finalizados') { if (typeof carregarSepPedidos === 'function') { carregarSepPedidos().then(() => { if (typeof renderWmsFinalizados === 'function') renderWmsFinalizados(); }); } else if (typeof renderWmsFinalizados === 'function') { renderWmsFinalizados(); } }
     }
 
     // --- DEVOLUÇÃO: troca de sub-aba ---
@@ -4927,6 +4958,9 @@ const app = (function() {
         const { error } = await db.from('sep_pedidos').delete().eq('id', id).eq('admin_id', state.adminId);
         if (error) { avisar('Erro ao excluir: ' + error.message); return; }
         await carregarSepPedidos();
+        if (typeof renderConferencia === 'function') renderConferencia();
+        if (typeof renderExpedicao === 'function') renderExpedicao();
+        if (typeof renderWmsFinalizados === 'function') renderWmsFinalizados();
     }
 
     // --- Fluxo do separador (mobile) ---
@@ -8646,7 +8680,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         carregarSepPedidos, renderSepPedidos, abrirModalSepPedido, filtrarProdutosSepPedido, selecionarProdutoSep, addItemSepTemp, removerItemSepTemp, salvarSepPedido, excluirSepPedido,
         renderExpedicao, verQrPedido, abrirExpedicao, confirmarExpedicao, pararScannerExp,
         abrirMontarCaixa, gerarCaixaMontada, imprimirCaixaMontada, imprimirPedidoQr,
-        finalizarSeparacao, renderConferencia, abrirConferencia,
+        finalizarSeparacao, renderConferencia, abrirConferencia, renderWmsFinalizados,
         abrirSeparacaoSep, renderItensSeparacaoSep, abrirConfirmarItemSep, iniciarScannerSep, confirmarItemSep, fecharSepConfirmar, fecharSepSeparacao,
         switchImpSubtab, carregarImpAnalise, importarSaldo, importarSaida, importarSaidaAnt, importarArquivoImp, limparImpAnalise, renderImpAnalise, renderImpDados, exportarImpExcel, renderImpComparativo,
         switchRegSubtab, carregarFiscalClientes, carregarFiscalVendedores, renderClientes, renderVendedores, importarClientesArquivo, importarVendedoresArquivo, abrirModalCliente, salvarCliente, excluirCliente, abrirModalVendedor, salvarVendedor, excluirVendedor,
