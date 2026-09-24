@@ -1203,6 +1203,7 @@ body.monitor-mode .queue-card button { display: none !important; }
             </div>
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
+                <button class="btn btn-primary" onclick="app.imprimirPedidoQr()">🖨️ Imprimir</button>
             </div>
         </div>
 
@@ -1267,6 +1268,7 @@ body.monitor-mode .queue-card button { display: none !important; }
                     <p style="color:var(--success,#28a745); font-weight:600; margin-bottom:0.3rem;">✅ Caixa gerada — imprima e cole na caixa:</p>
                     <div id="mc-qr-conteudo" style="font-size:0.85rem; color:var(--text-sec); margin-bottom:0.6rem;"></div>
                     <div id="mc-qr-canvas" style="display:flex; justify-content:center;"></div>
+                    <button class="btn btn-secondary" onclick="app.imprimirCaixaMontada()" style="margin-top:0.8rem;">🖨️ Imprimir QR</button>
                 </div>
             </div>
             <div class="drawer-footer">
@@ -3499,7 +3501,7 @@ const app = (function() {
             else canvas.innerHTML = '<p style="color:var(--danger);">Biblioteca de QR não carregada.</p>';
             document.getElementById('mc-qr-conteudo').innerHTML = selecionados.map(sl => `${escapeWms(sl.ref)}: <strong>${sl.qtd} pçs</strong>`).join(' · ');
             document.getElementById('mc-qr-area').style.display = 'block';
-            avisar('Caixa montada e contabilizada! Imprima o QR e cole na caixa.');
+            avisar(todosOk ? 'Caixa montada! Pedido concluído — já está na aba 🚀 Expedição.' : 'Caixa montada e contabilizada! Imprima o QR e cole na caixa.');
             await carregarSepPedidos();
             _sepPedidoAtual = (state.sepPedidos || []).find(x => x.id === _sepPedidoAtual.id) || _sepPedidoAtual;
             renderItensSeparacaoSep();
@@ -3508,6 +3510,33 @@ const app = (function() {
             console.error(e);
             avisar('Erro ao montar caixa: ' + (e.message || e));
         }
+    }
+
+    function imprimirQr(containerId, titulo, subtitulo) {
+        const cont = document.getElementById(containerId);
+        if (!cont) { avisar('QR não encontrado.'); return; }
+        const img = cont.querySelector('img');
+        const canvas = cont.querySelector('canvas');
+        let src = '';
+        if (img && img.src) src = img.src;
+        else if (canvas) { try { src = canvas.toDataURL('image/png'); } catch (e) {} }
+        if (!src) { avisar('QR ainda não gerado.'); return; }
+        const w = window.open('', '_blank', 'width=420,height=560');
+        if (!w) { avisar('Permita pop-ups para imprimir.'); return; }
+        w.document.body.innerHTML = `<div style="text-align:center; font-family:sans-serif; padding:20px;"><h2 style="margin:0 0 6px;">${titulo || ''}</h2><p style="margin:0 0 14px; color:#444;">${subtitulo || ''}</p><img src="${src}" style="width:300px; height:300px;"></div>`;
+        w.document.title = titulo || 'QR';
+        setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 400);
+    }
+
+    function imprimirCaixaMontada() {
+        const num = document.getElementById('mc-numero') ? document.getElementById('mc-numero').textContent : '';
+        const cont = document.getElementById('mc-qr-conteudo') ? document.getElementById('mc-qr-conteudo').textContent : '';
+        imprimirQr('mc-qr-canvas', 'Caixa · Pedido ' + num, cont);
+    }
+
+    function imprimirPedidoQr() {
+        const num = document.getElementById('ped-qr-titulo') ? document.getElementById('ped-qr-titulo').textContent : '';
+        imprimirQr('ped-qr-canvas', 'Pedido ' + num, '');
     }
 
     function switchWmsSubtab(subtab) {
@@ -4963,12 +4992,14 @@ const app = (function() {
     }
 
     function pararScannerSep() {
-        if (_scannerSepInstance) {
-            try { _scannerSepInstance.clear(); } catch(e) {}
-            _scannerSepInstance = null;
-        }
+        _sepScanAtivo = false;
         const reader = document.getElementById('sep-conf-reader');
-        if (reader) reader.innerHTML = '';
+        const inst = _scannerSepInstance;
+        _scannerSepInstance = null;
+        const limpar = () => { if (inst) { try { inst.clear(); } catch (e) {} } if (reader) reader.innerHTML = ''; };
+        if (inst) {
+            try { inst.stop().then(limpar).catch(limpar); } catch (e) { limpar(); }
+        } else { limpar(); }
     }
 
     async function confirmarItemSep() {
@@ -8526,7 +8557,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         switchDevSubtab, carregarDevProdutos, renderDevBase, importarDevProdutos, abrirModalDevProduto, salvarDevProduto, excluirDevProduto, verDevQr, imprimirDevQr,
         carregarSepPedidos, renderSepPedidos, abrirModalSepPedido, filtrarProdutosSepPedido, selecionarProdutoSep, addItemSepTemp, removerItemSepTemp, salvarSepPedido, excluirSepPedido,
         renderExpedicao, verQrPedido, abrirExpedicao, confirmarExpedicao, pararScannerExp,
-        abrirMontarCaixa, gerarCaixaMontada,
+        abrirMontarCaixa, gerarCaixaMontada, imprimirCaixaMontada, imprimirPedidoQr,
         abrirSeparacaoSep, renderItensSeparacaoSep, abrirConfirmarItemSep, iniciarScannerSep, confirmarItemSep, fecharSepConfirmar, fecharSepSeparacao,
         switchImpSubtab, carregarImpAnalise, importarSaldo, importarSaida, importarSaidaAnt, importarArquivoImp, limparImpAnalise, renderImpAnalise, renderImpDados, exportarImpExcel, renderImpComparativo,
         switchRegSubtab, carregarFiscalClientes, carregarFiscalVendedores, renderClientes, renderVendedores, importarClientesArquivo, importarVendedoresArquivo, abrirModalCliente, salvarCliente, excluirCliente, abrirModalVendedor, salvarVendedor, excluirVendedor,
