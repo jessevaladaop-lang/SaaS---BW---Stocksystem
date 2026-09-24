@@ -1226,6 +1226,7 @@ body.monitor-mode .queue-card button { display: none !important; }
             </div>
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.fecharSepSeparacao()">Fechar</button>
+                <button class="btn btn-primary" onclick="app.abrirMontarCaixa()">📦 Montar caixa</button>
             </div>
         </div>
 
@@ -1251,6 +1252,26 @@ body.monitor-mode .queue-card button { display: none !important; }
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.fecharSepConfirmar()">Cancelar</button>
                 <button class="btn btn-primary" id="sep-conf-btn" onclick="app.confirmarItemSep()" disabled>Confirmar Separação</button>
+            </div>
+        </div>
+
+        <div class="drawer" id="drawer-montar-caixa">
+            <div class="drawer-header">
+                <h2>📦 Montar caixa <span id="mc-numero"></span></h2>
+                <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
+            </div>
+            <div class="drawer-body">
+                <p style="color:var(--text-sec); font-size:0.85rem; margin-bottom:0.8rem;">Informe quantas peças de cada produto vão nesta caixa (parcial ou mista). Ao gerar, já contabiliza na separação.</p>
+                <div id="mc-itens" style="border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:1rem;"></div>
+                <div id="mc-qr-area" style="display:none; text-align:center; border-top:1px dashed var(--border); padding-top:1rem;">
+                    <p style="color:var(--success,#28a745); font-weight:600; margin-bottom:0.3rem;">✅ Caixa gerada — imprima e cole na caixa:</p>
+                    <div id="mc-qr-conteudo" style="font-size:0.85rem; color:var(--text-sec); margin-bottom:0.6rem;"></div>
+                    <div id="mc-qr-canvas" style="display:flex; justify-content:center;"></div>
+                </div>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
+                <button class="btn btn-primary" onclick="app.gerarCaixaMontada()">➕ Gerar QR e contabilizar</button>
             </div>
         </div>
 
@@ -3216,6 +3237,8 @@ const app = (function() {
     let _expPedidoAtual = null;
     let _expEsperado = {};
     let _expScan = {};
+    let _expPpc = {};
+    let _expTokens = {};
     let _expPedConfirmado = false;
     let _scannerExpInstance = null;
     let _expUltimaLeitura = 0;
@@ -3238,12 +3261,12 @@ const app = (function() {
         if (lista.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec);">Nenhum pedido para expedir.</p>'; return; }
         lista.forEach(p => {
             const itens = (state.sepItens || []).filter(i => i.pedidoId === p.id);
-            const totalCaixas = itens.reduce((sm, i) => sm + Math.round((i.qtdSeparada || 0) / pecasPorCaixaDe(i)), 0);
+            const totalPecas = itens.reduce((sm, i) => sm + (i.qtdSeparada || 0), 0);
             const expedido = p.status === 'Expedido';
             const card = document.createElement('div');
             card.className = 'card';
             card.style.cssText = `display:flex; justify-content:space-between; align-items:center; padding:0.8rem 1rem; flex-wrap:wrap; gap:0.5rem; ${expedido ? 'border-color:var(--success,#28a745);' : ''}`;
-            card.innerHTML = `<div><div style="font-weight:700; font-size:1.05rem;">${escapeWms(p.numero)}</div><div style="color:var(--text-sec); font-size:0.88rem;">${escapeWms(p.cliente) || 'Sem cliente'}${p.vendedor ? ' · Vend: ' + escapeWms(p.vendedor) : ''}</div><div style="font-size:0.82rem; margin-top:0.3rem;">${itens.length} produto(s) · ${totalCaixas} caixa(s)${p.separador ? ' · Separador: ' + escapeWms(p.separador) : ''}</div></div><div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;"><span style="font-size:0.8rem; font-weight:600; color:${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; border:1px solid ${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; padding:0.2rem 0.6rem; border-radius:12px;">${expedido ? '✅ Expedido' : 'A expedir'}</span><button class="btn btn-secondary" style="padding:0.4rem 0.8rem;" onclick="app.verQrPedido('${p.id}')">📱 QR do pedido</button>${expedido ? '' : `<button class="btn btn-primary req-estoque-edit" style="padding:0.4rem 0.8rem;" onclick="app.abrirExpedicao('${p.id}')">🚀 Expedir</button>`}</div>`;
+            card.innerHTML = `<div><div style="font-weight:700; font-size:1.05rem;">${escapeWms(p.numero)}</div><div style="color:var(--text-sec); font-size:0.88rem;">${escapeWms(p.cliente) || 'Sem cliente'}${p.vendedor ? ' · Vend: ' + escapeWms(p.vendedor) : ''}</div><div style="font-size:0.82rem; margin-top:0.3rem;">${itens.length} produto(s) · ${totalPecas} pçs${p.separador ? ' · Separador: ' + escapeWms(p.separador) : ''}</div></div><div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;"><span style="font-size:0.8rem; font-weight:600; color:${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; border:1px solid ${expedido ? 'var(--success,#28a745)' : 'var(--accent)'}; padding:0.2rem 0.6rem; border-radius:12px;">${expedido ? '✅ Expedido' : 'A expedir'}</span><button class="btn btn-secondary" style="padding:0.4rem 0.8rem;" onclick="app.verQrPedido('${p.id}')">📱 QR do pedido</button>${expedido ? '' : `<button class="btn btn-primary req-estoque-edit" style="padding:0.4rem 0.8rem;" onclick="app.abrirExpedicao('${p.id}')">🚀 Expedir</button>`}</div>`;
             cont.appendChild(card);
         });
     }
@@ -3266,10 +3289,12 @@ const app = (function() {
         _expPedConfirmado = false;
         _expEsperado = {};
         _expScan = {};
+        _expPpc = {};
+        _expTokens = {};
         (state.sepItens || []).filter(i => i.pedidoId === p.id).forEach(i => {
-            const cx = Math.round((i.qtdSeparada || 0) / pecasPorCaixaDe(i));
-            _expEsperado[i.referencia] = (_expEsperado[i.referencia] || 0) + cx;
+            _expEsperado[i.referencia] = (_expEsperado[i.referencia] || 0) + (i.qtdSeparada || 0);
             _expScan[i.referencia] = 0;
+            _expPpc[i.referencia] = pecasPorCaixaDe(i);
         });
         document.getElementById('sep-exp-numero').textContent = p.numero;
         document.getElementById('sep-exp-info').innerHTML = `<strong>Cliente:</strong> ${escapeWms(p.cliente) || '—'}${p.vendedor ? ' · <strong>Vend:</strong> ' + escapeWms(p.vendedor) : ''}`;
@@ -3335,14 +3360,44 @@ const app = (function() {
         _expUltimaLeitura = agora;
         const log = document.getElementById('sep-exp-log');
         const addLog = (html, cor) => { if (log) { const d = document.createElement('div'); d.style.cssText = `padding:0.35rem 0.6rem; border-radius:4px; margin-bottom:0.3rem; font-size:0.85rem; background:${cor};`; d.innerHTML = html; log.prepend(d); } };
-        if (!lido.startsWith('BW-PROD:')) { addLog(`❌ QR inválido: <strong>${escapeWms(lido)}</strong>`, 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
-        const ref = lido.substring(8);
-        if (!(ref in _expEsperado)) { addLog(`❌ A caixa do produto <strong>${escapeWms(ref)}</strong> NÃO é deste pedido.`, 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
-        if ((_expScan[ref] || 0) + 1 > _expEsperado[ref]) { addLog(`⚠️ Caixa A MAIS de <strong>${escapeWms(ref)}</strong> — o pedido só tem ${_expEsperado[ref]} caixa(s).`, 'rgba(245,158,11,0.18)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); renderExpTally(); return; }
-        _expScan[ref] = (_expScan[ref] || 0) + 1;
-        addLog(`✅ Caixa de <strong>${escapeWms(ref)}</strong> (${_expScan[ref]}/${_expEsperado[ref]})`, 'rgba(34,197,94,0.15)');
-        if (typeof tocarAlerta === 'function') tocarAlerta(1);
-        renderExpTally();
+        const erro = (msg) => { addLog(`❌ ${msg}`, 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); };
+        const alerta = (msg) => { addLog(`⚠️ ${msg}`, 'rgba(245,158,11,0.18)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); };
+        if (lido.startsWith('BW-PROD:')) {
+            const ref = lido.substring(8);
+            if (!(ref in _expEsperado)) { erro(`Produto <strong>${escapeWms(ref)}</strong> NÃO é deste pedido.`); return; }
+            const ppc = _expPpc[ref] || 1;
+            if ((_expScan[ref] || 0) + ppc > _expEsperado[ref]) { alerta(`Caixa cheia de <strong>${escapeWms(ref)}</strong> excede — faltam ${_expEsperado[ref] - (_expScan[ref] || 0)} pçs. Use a caixa parcial.`); renderExpTally(); return; }
+            _expScan[ref] = (_expScan[ref] || 0) + ppc;
+            addLog(`✅ Caixa cheia de <strong>${escapeWms(ref)}</strong> (+${ppc}) — ${_expScan[ref]}/${_expEsperado[ref]} pçs`, 'rgba(34,197,94,0.15)');
+            if (typeof tocarAlerta === 'function') tocarAlerta(1);
+            renderExpTally();
+            return;
+        }
+        if (lido.startsWith('BW-CX:')) {
+            const parts = lido.split(':');
+            const pid = parts[1], token = parts[2], conteudo = parts.slice(3).join(':');
+            if (pid !== _expPedidoAtual.id) { erro('Esta caixa é de OUTRO pedido.'); return; }
+            if (_expTokens[token]) { alerta('Esta caixa montada já foi bipada.'); return; }
+            const pares = (conteudo || '').split(';').map(x => x.split('=')).filter(a => a[0]);
+            if (pares.length === 0) { erro('Caixa montada inválida.'); return; }
+            for (const par of pares) {
+                const ref = par[0], q = parseInt(par[1]) || 0;
+                if (!(ref in _expEsperado)) { erro(`Caixa contém <strong>${escapeWms(ref)}</strong>, que NÃO é deste pedido.`); return; }
+                if ((_expScan[ref] || 0) + q > _expEsperado[ref]) { alerta(`Caixa excede em <strong>${escapeWms(ref)}</strong> — faltam ${_expEsperado[ref] - (_expScan[ref] || 0)} pçs.`); return; }
+            }
+            const descr = [];
+            for (const par of pares) {
+                const ref = par[0], q = parseInt(par[1]) || 0;
+                _expScan[ref] = (_expScan[ref] || 0) + q;
+                descr.push(`${escapeWms(ref)} +${q}`);
+            }
+            _expTokens[token] = true;
+            addLog(`✅ Caixa montada: ${descr.join(', ')}`, 'rgba(34,197,94,0.15)');
+            if (typeof tocarAlerta === 'function') tocarAlerta(1);
+            renderExpTally();
+            return;
+        }
+        erro(`QR inválido: <strong>${escapeWms(lido)}</strong>`);
     }
 
     function renderExpTally() {
@@ -3355,7 +3410,7 @@ const app = (function() {
             const ok = sc === esp;
             if (!ok) tudoOk = false;
             const cor = sc === esp ? 'var(--success,#28a745)' : (sc > esp ? 'var(--danger,#f85149)' : 'var(--text-sec)');
-            return `<div style="display:flex; justify-content:space-between; padding:0.35rem 0.6rem; border-bottom:1px solid var(--border); font-size:0.88rem;"><span>${escapeWms(ref)}</span><strong style="color:${cor};">${sc}/${esp} cx ${ok ? '✅' : ''}</strong></div>`;
+            return `<div style="display:flex; justify-content:space-between; padding:0.35rem 0.6rem; border-bottom:1px solid var(--border); font-size:0.88rem;"><span>${escapeWms(ref)}</span><strong style="color:${cor};">${sc}/${esp} pçs ${ok ? '✅' : ''}</strong></div>`;
         }).join('');
         const btn = document.getElementById('sep-exp-btn-confirmar');
         if (btn) btn.disabled = !(_expPedConfirmado && tudoOk);
@@ -3367,8 +3422,8 @@ const app = (function() {
         const refs = Object.keys(_expEsperado);
         const faltando = refs.filter(r => (_expScan[r] || 0) < _expEsperado[r]);
         const sobrando = refs.filter(r => (_expScan[r] || 0) > _expEsperado[r]);
-        if (sobrando.length > 0) { avisar('Há caixas a mais escaneadas. Corrija antes de confirmar.'); return; }
-        if (faltando.length > 0) { avisar('Faltam caixas: ' + faltando.map(r => `${r} (${_expScan[r] || 0}/${_expEsperado[r]})`).join(', ')); return; }
+        if (sobrando.length > 0) { avisar('Há peças a mais escaneadas. Corrija antes de confirmar.'); return; }
+        if (faltando.length > 0) { avisar('Faltam peças: ' + faltando.map(r => `${r} (${_expScan[r] || 0}/${_expEsperado[r]})`).join(', ')); return; }
         const ok = await confirmar(`Confirmar expedição do pedido ${_expPedidoAtual.numero}? Todas as caixas conferem.`);
         if (!ok) return;
         const { error } = await db.from('sep_pedidos').update({ status: 'Expedido' }).eq('id', _expPedidoAtual.id).eq('admin_id', state.adminId);
@@ -3384,6 +3439,75 @@ const app = (function() {
         if (_scannerExpInstance) { try { _scannerExpInstance.clear(); } catch (e) {} _scannerExpInstance = null; }
         const reader = document.getElementById('sep-exp-reader');
         if (reader) reader.innerHTML = '';
+    }
+
+    // ================= MONTAR CAIXA (parcial / mista) =================
+    function renderMontarCaixaItens() {
+        const cont = document.getElementById('mc-itens');
+        if (!cont || !_sepPedidoAtual) return;
+        const itens = (state.sepItens || []).filter(i => i.pedidoId === _sepPedidoAtual.id && (i.qtdSeparada || 0) < (i.qtdSolicitada || 0));
+        if (itens.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec); padding:0.8rem;">Todos os itens já estão separados.</p>'; return; }
+        cont.innerHTML = itens.map(i => {
+            const falta = (i.qtdSolicitada || 0) - (i.qtdSeparada || 0);
+            return `<div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; padding:0.5rem 0.7rem; border-bottom:1px solid var(--border);"><div><strong>${escapeWms(i.referencia)}</strong> <span style="color:var(--text-sec); font-size:0.82rem;">— falta ${falta} pçs</span></div><input type="number" class="form-control mc-qty" data-item="${i.id}" data-ref="${escapeWms(i.referencia)}" data-falta="${falta}" min="0" max="${falta}" placeholder="0" style="width:100px;"></div>`;
+        }).join('');
+    }
+
+    function abrirMontarCaixa() {
+        if (!_sepPedidoAtual) return;
+        const sep = document.getElementById('sep-sep-separador') ? document.getElementById('sep-sep-separador').value : '';
+        if (!sep) { avisar('Selecione o separador antes de montar caixas.'); return; }
+        document.getElementById('mc-numero').textContent = _sepPedidoAtual.numero;
+        document.getElementById('mc-qr-area').style.display = 'none';
+        document.getElementById('mc-qr-canvas').innerHTML = '';
+        renderMontarCaixaItens();
+        openDrawer('drawer-montar-caixa');
+    }
+
+    async function gerarCaixaMontada() {
+        if (!_sepPedidoAtual) return;
+        const inputs = Array.from(document.querySelectorAll('#mc-itens .mc-qty'));
+        const selecionados = [];
+        for (const inp of inputs) {
+            const q = parseInt(inp.value) || 0;
+            if (q <= 0) continue;
+            const falta = parseInt(inp.getAttribute('data-falta')) || 0;
+            if (q > falta) { avisar(`${inp.getAttribute('data-ref')}: máximo ${falta} pçs.`); return; }
+            selecionados.push({ id: inp.getAttribute('data-item'), ref: inp.getAttribute('data-ref'), qtd: q });
+        }
+        if (selecionados.length === 0) { avisar('Informe a quantidade de pelo menos um produto.'); return; }
+        const separador = document.getElementById('sep-sep-separador').value;
+        try {
+            for (const sel of selecionados) {
+                const item = (state.sepItens || []).find(x => x.id === sel.id);
+                if (!item) continue;
+                const novaQtd = (item.qtdSeparada || 0) + sel.qtd;
+                const conf = novaQtd >= (item.qtdSolicitada || 0);
+                const { error } = await db.from('sep_itens').update({ qtd_separada: novaQtd, confirmado: conf }).eq('id', sel.id).eq('admin_id', state.adminId);
+                if (error) throw error;
+            }
+            await carregarSepPedidos();
+            const itensP = (state.sepItens || []).filter(i => i.pedidoId === _sepPedidoAtual.id);
+            const todosOk = itensP.length > 0 && itensP.every(i => i.confirmado && i.qtdSeparada >= i.qtdSolicitada);
+            await db.from('sep_pedidos').update({ status: todosOk ? 'Concluído' : 'Em separação', separador }).eq('id', _sepPedidoAtual.id).eq('admin_id', state.adminId);
+            const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+            const conteudo = selecionados.map(sl => `${sl.ref}=${sl.qtd}`).join(';');
+            const qrData = `BW-CX:${_sepPedidoAtual.id}:${token}:${conteudo}`;
+            const canvas = document.getElementById('mc-qr-canvas');
+            canvas.innerHTML = '';
+            if (typeof QRCode !== 'undefined') new QRCode(canvas, { text: qrData, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+            else canvas.innerHTML = '<p style="color:var(--danger);">Biblioteca de QR não carregada.</p>';
+            document.getElementById('mc-qr-conteudo').innerHTML = selecionados.map(sl => `${escapeWms(sl.ref)}: <strong>${sl.qtd} pçs</strong>`).join(' · ');
+            document.getElementById('mc-qr-area').style.display = 'block';
+            avisar('Caixa montada e contabilizada! Imprima o QR e cole na caixa.');
+            await carregarSepPedidos();
+            _sepPedidoAtual = (state.sepPedidos || []).find(x => x.id === _sepPedidoAtual.id) || _sepPedidoAtual;
+            renderItensSeparacaoSep();
+            renderMontarCaixaItens();
+        } catch (e) {
+            console.error(e);
+            avisar('Erro ao montar caixa: ' + (e.message || e));
+        }
     }
 
     function switchWmsSubtab(subtab) {
@@ -4741,6 +4865,8 @@ const app = (function() {
     let _sepCaixasBip = 0;
     let _sepCaixasNec = 0;
     let _sepPpcAtual = 1;
+    let _sepQtdIni = 0;
+    let _sepRestoAtual = 0;
 
     function renderSepConfContador() {
         const el = document.getElementById('sep-conf-contador');
@@ -4758,12 +4884,20 @@ const app = (function() {
         _sepItemAtual = item;
         _sepQrConfirmado = false;
         _sepPpcAtual = pecasPorCaixaDe(item);
-        _sepCaixasNec = Math.ceil((item.qtdSolicitada || 0) / _sepPpcAtual);
+        _sepQtdIni = item.qtdSeparada || 0;
+        const restante = Math.max(0, (item.qtdSolicitada || 0) - _sepQtdIni);
+        _sepCaixasNec = Math.floor(restante / _sepPpcAtual);
+        _sepRestoAtual = restante - _sepCaixasNec * _sepPpcAtual;
         _sepCaixasBip = 0;
-        document.getElementById('sep-conf-info').innerHTML = `<div style="font-weight:700; font-size:1.1rem;">${escapeWms(item.referencia)}</div><div style="color:var(--text-sec); font-size:0.9rem;">${escapeWms(item.descricao)}</div><div style="margin-top:0.4rem;">Solicitado: <strong>${item.qtdSolicitada} pçs</strong> · Caixa: <strong>${_sepPpcAtual} pçs</strong> · Necessário: <strong>${_sepCaixasNec} caixa(s)</strong></div>`;
+        document.getElementById('sep-conf-info').innerHTML = `<div style="font-weight:700; font-size:1.1rem;">${escapeWms(item.referencia)}</div><div style="color:var(--text-sec); font-size:0.9rem;">${escapeWms(item.descricao)}</div><div style="margin-top:0.4rem;">Solicitado: <strong>${item.qtdSolicitada} pçs</strong> · Já separado: <strong>${_sepQtdIni} pçs</strong> · Caixa: <strong>${_sepPpcAtual} pçs</strong></div><div style="margin-top:0.2rem;">Faltam: <strong>${restante} pçs</strong> = <strong>${_sepCaixasNec} caixa(s) cheia(s)</strong>${_sepRestoAtual > 0 ? ` + <strong>${_sepRestoAtual} pçs avulsas</strong>` : ''}</div>`;
         const st = document.getElementById('sep-conf-qr-status');
-        st.innerHTML = '🔒 Escaneie as caixas deste produto.';
-        st.style.background = 'var(--hover-bg)';
+        if (_sepCaixasNec <= 0) {
+            st.innerHTML = _sepRestoAtual > 0 ? `⚠️ Só faltam ${_sepRestoAtual} pçs avulsas — feche pelo botão "📦 Montar caixa".` : '✅ Item já separado.';
+            st.style.background = _sepRestoAtual > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)';
+        } else {
+            st.innerHTML = '🔒 Escaneie as caixas cheias deste produto.';
+            st.style.background = 'var(--hover-bg)';
+        }
         document.getElementById('sep-conf-qtd').value = '';
         document.getElementById('sep-conf-btn').disabled = true;
         document.getElementById('sep-conf-reader').innerHTML = '';
@@ -4773,15 +4907,18 @@ const app = (function() {
     }
 
     let _sepUltimaLeitura = 0;
+    let _sepScanAtivo = false;
 
     function iniciarScannerSep() {
         if (!_sepItemAtual) return;
+        if (_sepCaixasNec <= 0) { avisar('Este produto não tem caixas cheias a bipar. Use "📦 Montar caixa" para o restante.'); return; }
         const esperado = 'BW-PROD:' + _sepItemAtual.referencia;
         if (typeof Html5Qrcode === 'undefined') { avisar('Biblioteca de leitura de QR não carregada. Recarregue a página.'); return; }
         pararScannerSep();
         const readerEl = document.getElementById('sep-conf-reader');
         readerEl.innerHTML = '<div id="sep-qr-reader-inner" style="width:100%;"></div>';
         _scannerSepInstance = new Html5Qrcode('sep-qr-reader-inner');
+        _sepScanAtivo = true;
         _scannerSepInstance.start(
             { facingMode: 'environment' },
             { fps: 10, qrbox: { width: 220, height: 220 } },
@@ -4794,6 +4931,7 @@ const app = (function() {
     }
 
     function processarCaixaSep(lido, esperado) {
+        if (!_sepScanAtivo) return;
         const agora = Date.now();
         if (agora - _sepUltimaLeitura < 1200) return;
         _sepUltimaLeitura = agora;
@@ -4816,9 +4954,9 @@ const app = (function() {
         if (typeof tocarAlerta === 'function') tocarAlerta(1);
         renderSepConfContador();
         if (_sepCaixasBip >= _sepCaixasNec) {
-            st.innerHTML = `✅ Todas as ${_sepCaixasNec} caixa(s) bipadas! Confirme a separação.`;
+            st.innerHTML = `✅ ${_sepCaixasNec} caixa(s) cheia(s) bipada(s)!` + (_sepRestoAtual > 0 ? ` Ainda faltam ${_sepRestoAtual} pçs avulsas — use "📦 Montar caixa".` : ' Confirme a separação.');
             st.style.background = 'rgba(34,197,94,0.15)';
-            document.getElementById('sep-conf-qtd').value = _sepCaixasBip * _sepPpcAtual;
+            document.getElementById('sep-conf-qtd').value = _sepQtdIni + _sepCaixasBip * _sepPpcAtual;
             document.getElementById('sep-conf-btn').disabled = false;
             pararScannerSep();
         }
@@ -4837,13 +4975,14 @@ const app = (function() {
         if (!_sepItemAtual || !_sepPedidoAtual) return;
         if (!_sepQrConfirmado) { avisar('Escaneie o QR do produto antes de confirmar.'); return; }
         const qtd = parseInt(document.getElementById('sep-conf-qtd').value);
-        if (isNaN(qtd) || qtd <= 0) { avisar('Informe a quantidade separada.'); return; }
+        if (isNaN(qtd) || qtd <= 0) { avisar('Bipe as caixas cheias antes de confirmar.'); return; }
         const separador = document.getElementById('sep-sep-separador').value;
+        const conf = qtd >= (_sepItemAtual.qtdSolicitada || 0);
         try {
-            const { error } = await db.from('sep_itens').update({ qtd_separada: qtd, confirmado: true }).eq('id', _sepItemAtual.id).eq('admin_id', state.adminId);
+            const { error } = await db.from('sep_itens').update({ qtd_separada: qtd, confirmado: conf }).eq('id', _sepItemAtual.id).eq('admin_id', state.adminId);
             if (error) throw error;
             // atualiza status do pedido
-            const itens = (state.sepItens || []).map(i => i.id === _sepItemAtual.id ? { ...i, qtdSeparada: qtd, confirmado: true } : i).filter(i => i.pedidoId === _sepPedidoAtual.id);
+            const itens = (state.sepItens || []).map(i => i.id === _sepItemAtual.id ? { ...i, qtdSeparada: qtd, confirmado: conf } : i).filter(i => i.pedidoId === _sepPedidoAtual.id);
             const todosOk = itens.every(i => i.confirmado && i.qtdSeparada >= i.qtdSolicitada);
             const novoStatus = todosOk ? 'Concluído' : 'Em separação';
             await db.from('sep_pedidos').update({ status: novoStatus, separador }).eq('id', _sepPedidoAtual.id).eq('admin_id', state.adminId);
@@ -8387,6 +8526,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         switchDevSubtab, carregarDevProdutos, renderDevBase, importarDevProdutos, abrirModalDevProduto, salvarDevProduto, excluirDevProduto, verDevQr, imprimirDevQr,
         carregarSepPedidos, renderSepPedidos, abrirModalSepPedido, filtrarProdutosSepPedido, selecionarProdutoSep, addItemSepTemp, removerItemSepTemp, salvarSepPedido, excluirSepPedido,
         renderExpedicao, verQrPedido, abrirExpedicao, confirmarExpedicao, pararScannerExp,
+        abrirMontarCaixa, gerarCaixaMontada,
         abrirSeparacaoSep, renderItensSeparacaoSep, abrirConfirmarItemSep, iniciarScannerSep, confirmarItemSep, fecharSepConfirmar, fecharSepSeparacao,
         switchImpSubtab, carregarImpAnalise, importarSaldo, importarSaida, importarSaidaAnt, importarArquivoImp, limparImpAnalise, renderImpAnalise, renderImpDados, exportarImpExcel, renderImpComparativo,
         switchRegSubtab, carregarFiscalClientes, carregarFiscalVendedores, renderClientes, renderVendedores, importarClientesArquivo, importarVendedoresArquivo, abrirModalCliente, salvarCliente, excluirCliente, abrirModalVendedor, salvarVendedor, excluirVendedor,
