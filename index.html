@@ -3244,6 +3244,7 @@ const app = (function() {
     let _expPedConfirmado = false;
     let _scannerExpInstance = null;
     let _expUltimaLeitura = 0;
+    let _expScanAtivo = false;
 
     function pecasPorCaixaDe(item) {
         const p = (state.wmsProdutos || []).find(x => x.id === item.produtoId) || (state.wmsProdutos || []).find(x => (x.sku || '') === item.referencia);
@@ -3318,20 +3319,22 @@ const app = (function() {
         const readerEl = document.getElementById('sep-exp-reader');
         readerEl.innerHTML = '<div id="sep-exp-reader-inner" style="width:100%;"></div>';
         _scannerExpInstance = new Html5Qrcode('sep-exp-reader-inner');
+        _expScanAtivo = true;
         const esperado = 'BW-PED:' + _expPedidoAtual.id;
         _scannerExpInstance.start(
             { facingMode: 'environment' },
             { fps: 10, qrbox: { width: 220, height: 220 } },
             (decodedText) => {
+                if (!_expScanAtivo) return;
                 const lido = (decodedText || '').trim();
                 const st = document.getElementById('sep-exp-ped-status');
                 if (lido === esperado) {
+                    _expScanAtivo = false;
                     _expPedConfirmado = true;
                     st.innerHTML = `✅ Pedido <strong>${escapeWms(_expPedidoAtual.numero)}</strong> confirmado! Agora escaneie as caixas.`;
                     st.style.background = 'rgba(34,197,94,0.15)';
-                    pararScannerExp();
                     document.getElementById('sep-exp-caixas-area').style.display = 'block';
-                    iniciarScannerExpCaixa();
+                    pararScannerExp().then(() => { iniciarScannerExpCaixa(); });
                 } else {
                     st.innerHTML = `❌ Esse QR não é do pedido <strong>${escapeWms(_expPedidoAtual.numero)}</strong>.`;
                     st.style.background = 'rgba(239,68,68,0.15)';
@@ -3348,6 +3351,7 @@ const app = (function() {
         const readerEl = document.getElementById('sep-exp-reader');
         readerEl.innerHTML = '<div id="sep-exp-reader-inner" style="width:100%;"></div>';
         _scannerExpInstance = new Html5Qrcode('sep-exp-reader-inner');
+        _expScanAtivo = true;
         _scannerExpInstance.start(
             { facingMode: 'environment' },
             { fps: 10, qrbox: { width: 220, height: 220 } },
@@ -3357,6 +3361,7 @@ const app = (function() {
     }
 
     function processarCaixaExp(lido) {
+        if (!_expScanAtivo) return;
         const agora = Date.now();
         if (agora - _expUltimaLeitura < 1200) return;
         _expUltimaLeitura = agora;
@@ -3438,9 +3443,19 @@ const app = (function() {
     }
 
     function pararScannerExp() {
-        if (_scannerExpInstance) { try { _scannerExpInstance.clear(); } catch (e) {} _scannerExpInstance = null; }
+        _expScanAtivo = false;
         const reader = document.getElementById('sep-exp-reader');
-        if (reader) reader.innerHTML = '';
+        const inst = _scannerExpInstance;
+        _scannerExpInstance = null;
+        const limpar = () => { if (inst) { try { inst.clear(); } catch (e) {} } if (reader) reader.innerHTML = ''; };
+        if (inst) {
+            return new Promise((resolve) => {
+                try { inst.stop().then(() => { limpar(); resolve(); }).catch(() => { limpar(); resolve(); }); }
+                catch (e) { limpar(); resolve(); }
+            });
+        }
+        limpar();
+        return Promise.resolve();
     }
 
     // ================= MONTAR CAIXA (parcial / mista) =================
