@@ -1375,9 +1375,11 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
             </div>
             <div class="drawer-body" style="text-align:center;">
-                <div id="wms-qr-codigo" style="font-size:1.4rem; font-weight:700; margin-bottom:1rem;"></div>
-                <div id="wms-qr-canvas" style="display:inline-block; padding:1rem; background:#fff; border-radius:8px;"></div>
-                <p style="color:var(--text-sec); font-size:0.85rem; margin-top:1rem;">Imprima e cole no local físico do endereço.</p>
+                <div style="display:inline-block; background:#fff; color:#000; border-radius:10px; padding:1.2rem 1.5rem;">
+                    <div id="wms-qr-codigo" style="font-size:1.4rem; font-weight:700; margin-bottom:0.8rem; color:#000;"></div>
+                    <div id="wms-qr-canvas" style="display:inline-block;"></div>
+                </div>
+                <p style="color:var(--text-sec); font-size:0.85rem; margin-top:1rem;">Tire o print deste cartão branco e cole no Word para imprimir vários QRs por folha.</p>
             </div>
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
@@ -1648,10 +1650,12 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
             </div>
             <div class="drawer-body" style="text-align:center;">
-                <div id="dev-qr-ref" style="font-size:1.4rem; font-weight:700; margin-bottom:0.3rem;"></div>
-                <div id="dev-qr-desc" style="font-size:0.9rem; color:var(--text-sec); margin-bottom:1rem;"></div>
-                <div id="dev-qr-canvas" style="display:inline-block; padding:1rem; background:#fff; border-radius:8px;"></div>
-                <p style="color:var(--text-sec); font-size:0.85rem; margin-top:1rem;">Imprima e cole na embalagem ou prateleira do produto.</p>
+                <div style="display:inline-block; background:#fff; color:#000; border-radius:10px; padding:1.2rem 1.5rem;">
+                    <div id="dev-qr-ref" style="font-size:1.4rem; font-weight:700; margin-bottom:0.3rem; color:#000;"></div>
+                    <div id="dev-qr-desc" style="font-size:0.9rem; color:#333; margin-bottom:0.8rem;"></div>
+                    <div id="dev-qr-canvas" style="display:inline-block;"></div>
+                </div>
+                <p style="color:var(--text-sec); font-size:0.85rem; margin-top:1rem;">Tire o print deste cartão branco e cole no Word para imprimir vários QRs por folha.</p>
             </div>
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
