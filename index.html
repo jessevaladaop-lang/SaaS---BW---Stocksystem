@@ -3551,20 +3551,33 @@ const app = (function() {
         }
     }
 
-    function imprimirQr(containerId, titulo, subtitulo) {
+    function _qrSrc(containerId) {
         const cont = document.getElementById(containerId);
-        if (!cont) { avisar('QR não encontrado.'); return; }
+        if (!cont) return '';
         const img = cont.querySelector('img');
-        const canvas = cont.querySelector('canvas');
-        let src = '';
-        if (img && img.src) src = img.src;
-        else if (canvas) { try { src = canvas.toDataURL('image/png'); } catch (e) {} }
-        if (!src) { avisar('QR ainda não gerado.'); return; }
-        const w = window.open('', '_blank', 'width=420,height=560');
-        if (!w) { avisar('Permita pop-ups para imprimir.'); return; }
-        w.document.body.innerHTML = `<div style="text-align:center; font-family:sans-serif; padding:20px;"><h2 style="margin:0 0 6px;">${titulo || ''}</h2><p style="margin:0 0 14px; color:#444;">${subtitulo || ''}</p><img src="${src}" style="width:300px; height:300px;"></div>`;
-        w.document.title = titulo || 'QR';
-        setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 400);
+        if (img && img.src) return img.src;
+        const cv = cont.querySelector('canvas');
+        if (cv) { try { return cv.toDataURL('image/png'); } catch (e) {} }
+        return '';
+    }
+
+    function imprimirQrImagem(imgSrc, titulo, subtitulo) {
+        if (!imgSrc) { avisar('Gere o QR antes de imprimir.'); return; }
+        let f = document.getElementById('qr-print-frame');
+        if (f) f.remove();
+        f = document.createElement('iframe');
+        f.id = 'qr-print-frame';
+        f.style.cssText = 'position:fixed; right:0; bottom:0; width:0; height:0; border:0;';
+        document.body.appendChild(f);
+        const doc = f.contentWindow.document;
+        doc.open();
+        doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:#fff;} .w{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;color:#000;font-family:sans-serif;} img{background:#fff;} @page{margin:6mm;}</style></head><body><div class="w"><div style="font-size:1.4rem;font-weight:700;margin-bottom:2px;">${titulo || ''}</div><div style="font-size:0.9rem;margin-bottom:10px;">${subtitulo || ''}</div><img src="${imgSrc}" style="width:300px;height:300px;"></div></body></html>`);
+        doc.close();
+        setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) {} }, 300);
+    }
+
+    function imprimirQr(containerId, titulo, subtitulo) {
+        imprimirQrImagem(_qrSrc(containerId), titulo, subtitulo);
     }
 
     function imprimirCaixaMontada() {
@@ -8073,26 +8086,12 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
     function imprimirDevQr() {
         const ref = document.getElementById('dev-qr-ref').textContent;
         const desc = document.getElementById('dev-qr-desc').textContent;
-        const qrImg = document.querySelector('#dev-qr-canvas img') || document.querySelector('#dev-qr-canvas canvas');
-        if (!qrImg) { avisar('Gere o QR antes de imprimir.'); return; }
-        let imgSrc = '';
-        if (qrImg.tagName === 'IMG') { imgSrc = qrImg.src; }
-        else { imgSrc = qrImg.toDataURL('image/png'); }
-        const win = window.open('', '_blank', 'width=400,height=520');
-        win.document.write(`<html><head><title>QR ${ref}</title></head><body style="text-align:center; font-family:sans-serif; padding:20px;"><h1 style="font-size:2rem; margin-bottom:6px;">${ref}</h1><p style="font-size:1rem; margin:0 0 12px 0; color:#333;">${desc}</p><img src="${imgSrc}" style="width:300px;height:300px;"><p style="margin-top:10px; font-size:0.85rem; color:#666;">Bonway — Base de Produtos</p><script>window.onload=function(){window.print();}<\/script></body></html>`);
-        win.document.close();
+        imprimirQrImagem(_qrSrc('dev-qr-canvas'), ref, desc);
     }
 
     function imprimirWmsQr() {
         const codigo = document.getElementById('wms-qr-codigo').textContent;
-        const qrImg = document.querySelector('#wms-qr-canvas img') || document.querySelector('#wms-qr-canvas canvas');
-        if (!qrImg) { avisar('Gere o QR antes de imprimir.'); return; }
-        let imgSrc = '';
-        if (qrImg.tagName === 'IMG') { imgSrc = qrImg.src; }
-        else { imgSrc = qrImg.toDataURL('image/png'); }
-        const win = window.open('', '_blank', 'width=400,height=500');
-        win.document.write(`<html><head><title>QR ${codigo}</title></head><body style="text-align:center; font-family:sans-serif; padding:20px;"><h1 style="font-size:2rem; margin-bottom:10px;">${codigo}</h1><img src="${imgSrc}" style="width:300px;height:300px;"><p style="margin-top:10px;">Endereço de Armazenagem</p><script>window.onload=function(){window.print();}<\/script></body></html>`);
-        win.document.close();
+        imprimirQrImagem(_qrSrc('wms-qr-canvas'), codigo, 'Endereço de Armazenagem');
     }
 
     // ================= WMS: SALDOS / ALOCAÇÃO =================
