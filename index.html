@@ -2026,6 +2026,22 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <div style="display:flex; flex-wrap:wrap; gap:1rem;">
                     <div id="as-graf-pizza" style="display:flex; flex:1; min-width:300px;"></div>
                 </div>
+
+                <div class="card" style="margin-top:1rem;">
+                    <h3 style="margin:0 0 1rem;">📄 Relatório — Garantia / Devolução</h3>
+                    <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:flex-end; margin-bottom:1rem;">
+                        <div style="flex:0 1 150px; min-width:140px;"><small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Data inicial</small><input type="date" id="as-rel-data-ini" class="form-control" style="width:100%;"></div>
+                        <div style="flex:0 1 150px; min-width:140px;"><small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Data final</small><input type="date" id="as-rel-data-fim" class="form-control" style="width:100%;"></div>
+                        <div style="flex:0 1 190px; min-width:170px;"><small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Tipo</small><select id="as-rel-metodo" class="form-control" style="width:100%;"><option value="">Garantia + Devolução</option><option value="Garantia">Só Garantia</option><option value="Devolução">Só Devolução</option></select></div>
+                        <div style="flex:1 1 200px; min-width:180px;"><small style="color:var(--text-sec); display:block; margin-bottom:0.15rem;">Cliente</small><select id="as-rel-cliente" class="form-control" style="width:100%;"><option value="">Todos os clientes</option></select></div>
+                    </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:0.6rem; margin-bottom:1rem;">
+                        <button class="btn btn-primary" onclick="app.gerarRelatorioSac()">🔎 Gerar relatório</button>
+                        <button class="btn btn-secondary" onclick="app.exportarRelatorioSacExcel()">📊 Exportar Excel</button>
+                        <button class="btn btn-secondary" onclick="app.exportarRelatorioSacPdf()">📄 Exportar PDF</button>
+                    </div>
+                    <div id="as-rel-resultado"></div>
+                </div>
             </div>
 
             <div id="sac-garantia" class="as-subtab-content" style="display:none;">
@@ -5713,6 +5729,124 @@ const app = (function() {
             selCli.innerHTML = '<option value="">Todos os clientes</option>' + clientes.map(c => `<option value="${escapeWms(c)}">${escapeWms(c)}</option>`).join('');
             selCli.value = atual;
         }
+        const selRelCli = document.getElementById('as-rel-cliente');
+        if (selRelCli) {
+            const atual2 = selRelCli.value;
+            const clientes2 = [...new Set(_relItensSac().map(i => i.cliente).filter(Boolean))].sort();
+            selRelCli.innerHTML = '<option value="">Todos os clientes</option>' + clientes2.map(c => `<option value="${escapeWms(c)}">${escapeWms(c)}</option>`).join('');
+            selRelCli.value = atual2;
+        }
+    }
+
+    function _relItensSac() {
+        return (state.devItens || []).filter(i => (i.sacMetodo === 'Garantia' || i.sacMetodo === 'Devolução') && (i.sacDataCredito || i.sacDataFinalizado)).map(i => {
+            const ck = (state.devCheckins || []).find(c => c.id === i.checkinId) || {};
+            let dt;
+            if (i.sacDataCredito) { const pr = String(i.sacDataCredito).split('-'); dt = new Date(Number(pr[0]), Number(pr[1]) - 1, Number(pr[2])); }
+            else { dt = new Date(i.sacDataFinalizado); }
+            return {
+                data: dt,
+                dataStr: isNaN(dt.getTime()) ? '—' : `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`,
+                protocolo: ck.protocolo || '',
+                cliente: ck.cliente || '',
+                metodo: i.sacMetodo,
+                valor: (i.sacValorCredito != null && i.sacValorCredito !== '') ? Number(i.sacValorCredito) : 0
+            };
+        }).filter(x => !isNaN(x.data.getTime()));
+    }
+
+    function _relFiltrado() {
+        const di = document.getElementById('as-rel-data-ini') ? document.getElementById('as-rel-data-ini').value : '';
+        const df = document.getElementById('as-rel-data-fim') ? document.getElementById('as-rel-data-fim').value : '';
+        const met = document.getElementById('as-rel-metodo') ? document.getElementById('as-rel-metodo').value : '';
+        const cli = document.getElementById('as-rel-cliente') ? document.getElementById('as-rel-cliente').value : '';
+        let lista = _relItensSac();
+        if (di) { const d = new Date(di + 'T00:00:00'); lista = lista.filter(x => x.data >= d); }
+        if (df) { const d = new Date(df + 'T23:59:59'); lista = lista.filter(x => x.data <= d); }
+        if (met) lista = lista.filter(x => x.metodo === met);
+        if (cli) lista = lista.filter(x => x.cliente === cli);
+        lista.sort((a, b) => a.data - b.data);
+        return lista;
+    }
+
+    function gerarRelatorioSac() {
+        const cont = document.getElementById('as-rel-resultado');
+        if (!cont) return;
+        const lista = _relFiltrado();
+        if (lista.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec);">Nenhum lançamento no filtro escolhido.</p>'; return; }
+        const totGar = lista.filter(x => x.metodo === 'Garantia').reduce((sm, x) => sm + x.valor, 0);
+        const totDev = lista.filter(x => x.metodo === 'Devolução').reduce((sm, x) => sm + x.valor, 0);
+        const linhas = lista.map(x => `<tr><td>${escapeWms(x.dataStr)}</td><td>${escapeWms(x.protocolo)}</td><td>${escapeWms(x.cliente)}</td><td>${escapeWms(x.metodo)}</td><td style="text-align:right;">${_asFmtBRLfull(x.valor)}</td></tr>`).join('');
+        cont.innerHTML = `
+            <div style="overflow-x:auto; border:1px solid var(--border); border-radius:8px;">
+                <table class="data-table" style="width:100%;">
+                    <thead><tr><th>Data crédito</th><th>Protocolo</th><th>Cliente</th><th>Tipo</th><th style="text-align:right;">Valor</th></tr></thead>
+                    <tbody>${linhas}</tbody>
+                </table>
+            </div>
+            <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-top:0.8rem; font-size:0.9rem;">
+                <span>🛡️ Garantia: <strong>${_asFmtBRLfull(totGar)}</strong></span>
+                <span>↩️ Devolução: <strong>${_asFmtBRLfull(totDev)}</strong></span>
+                <span>Total geral: <strong style="color:var(--accent);">${_asFmtBRLfull(totGar + totDev)}</strong></span>
+                <span style="color:var(--text-sec);">${lista.length} lançamento(s)</span>
+            </div>`;
+    }
+
+    function exportarRelatorioSacExcel() {
+        if (typeof XLSX === 'undefined') { avisar('Biblioteca Excel não carregada.'); return; }
+        const lista = _relFiltrado();
+        if (lista.length === 0) { avisar('Nada para exportar no filtro escolhido.'); return; }
+        const dados = [['Data crédito', 'Protocolo', 'Cliente', 'Tipo', 'Valor (R$)']];
+        lista.forEach(x => dados.push([x.dataStr, x.protocolo, x.cliente, x.metodo, x.valor]));
+        const totGar = lista.filter(x => x.metodo === 'Garantia').reduce((sm, x) => sm + x.valor, 0);
+        const totDev = lista.filter(x => x.metodo === 'Devolução').reduce((sm, x) => sm + x.valor, 0);
+        dados.push([]);
+        dados.push(['', '', '', 'Total Garantia', totGar]);
+        dados.push(['', '', '', 'Total Devolução', totDev]);
+        dados.push(['', '', '', 'Total Geral', totGar + totDev]);
+        const ws = XLSX.utils.aoa_to_sheet(dados);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Relatorio SAC');
+        XLSX.writeFile(wb, `relatorio_sac_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    }
+
+    function exportarRelatorioSacPdf() {
+        if (typeof window.jspdf === 'undefined') { avisar('Biblioteca PDF não carregada. Recarregue a página.'); return; }
+        const lista = _relFiltrado();
+        if (lista.length === 0) { avisar('Nada para exportar no filtro escolhido.'); return; }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 15;
+        doc.setFontSize(16); doc.text('Relatorio SAC - Garantia / Devolucao', 14, y); y += 8;
+        doc.setFontSize(10);
+        const met = document.getElementById('as-rel-metodo').value || 'Garantia + Devolucao';
+        const cli = document.getElementById('as-rel-cliente').value || 'Todos os clientes';
+        const di = document.getElementById('as-rel-data-ini').value;
+        const df = document.getElementById('as-rel-data-fim').value;
+        const per = (di || df) ? `${di ? di.split('-').reverse().join('/') : '...'} a ${df ? df.split('-').reverse().join('/') : '...'}` : 'Todo o periodo';
+        doc.text(`Tipo: ${met}  |  Cliente: ${cli}`, 14, y); y += 6;
+        doc.text(`Periodo: ${per}  |  Emissao: ${new Date().toLocaleDateString('pt-BR')}`, 14, y); y += 8;
+        doc.setDrawColor(200); doc.line(14, y, 196, y); y += 6;
+        doc.setFontSize(9);
+        doc.text('Data', 14, y); doc.text('Protocolo', 40, y); doc.text('Cliente', 75, y); doc.text('Tipo', 140, y); doc.text('Valor', 175, y); y += 5;
+        doc.line(14, y - 2, 196, y - 2);
+        lista.forEach(x => {
+            if (y > 280) { doc.addPage(); y = 15; }
+            doc.text(String(x.dataStr), 14, y);
+            doc.text(String(x.protocolo).substring(0, 16), 40, y);
+            doc.text(String(x.cliente).substring(0, 32), 75, y);
+            doc.text(String(x.metodo), 140, y);
+            doc.text(_asFmtBRLfull(x.valor), 175, y);
+            y += 5;
+        });
+        const totGar = lista.filter(x => x.metodo === 'Garantia').reduce((sm, x) => sm + x.valor, 0);
+        const totDev = lista.filter(x => x.metodo === 'Devolução').reduce((sm, x) => sm + x.valor, 0);
+        y += 3; doc.line(14, y, 196, y); y += 6;
+        doc.setFontSize(10);
+        doc.text(`Total Garantia: ${_asFmtBRLfull(totGar)}`, 14, y); y += 6;
+        doc.text(`Total Devolucao: ${_asFmtBRLfull(totDev)}`, 14, y); y += 6;
+        doc.text(`Total Geral: ${_asFmtBRLfull(totGar + totDev)}`, 14, y);
+        doc.save(`relatorio_sac_${new Date().toISOString().slice(0, 10)}.pdf`);
     }
 
     function renderAnaliseSacDashboard() {
@@ -5769,8 +5903,8 @@ const app = (function() {
             const hD = Math.round((dev[idx] / maxVal) * 200);
             html += `<div style="display:flex; flex-direction:column; align-items:center; min-width:56px;">
                 <div style="display:flex; align-items:flex-end; gap:4px; height:200px;">
-                    <div style="width:20px; height:${hG}px; background:#2F81F7; border-radius:3px 3px 0 0; position:relative;" title="Garantia: ${_asFmtBRLfull(gar[idx])}"><span style="position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:0.62rem; color:var(--text-sec); white-space:nowrap;">${gar[idx] ? _asFmtBRL(gar[idx]) : ''}</span></div>
-                    <div style="width:20px; height:${hD}px; background:#f0883e; border-radius:3px 3px 0 0; position:relative;" title="Devolução: ${_asFmtBRLfull(dev[idx])}"><span style="position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:0.62rem; color:var(--text-sec); white-space:nowrap;">${dev[idx] ? _asFmtBRL(dev[idx]) : ''}</span></div>
+                    <div style="width:20px; height:${hG}px; background:#2F81F7; border-radius:3px 3px 0 0; position:relative;" title="Garantia: ${_asFmtBRLfull(gar[idx])}"><span style="position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:0.62rem; color:var(--text-sec); white-space:nowrap;">${gar[idx] ? _asFmtBRLfull(gar[idx]) : ''}</span></div>
+                    <div style="width:20px; height:${hD}px; background:#f0883e; border-radius:3px 3px 0 0; position:relative;" title="Devolução: ${_asFmtBRLfull(dev[idx])}"><span style="position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:0.62rem; color:var(--text-sec); white-space:nowrap;">${dev[idx] ? _asFmtBRLfull(dev[idx]) : ''}</span></div>
                 </div>
                 <div style="margin-top:0.5rem; font-size:0.72rem; color:var(--text-sec);">${lb}</div>
             </div>`;
@@ -8691,7 +8825,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         carregarDevListas, renderDevListas, addDevLista, excluirDevLista,
         carregarDevCheckins, renderDevCheckin, gerarProtocoloCheckin, salvarCheckin, editarItemDevolucao,
         renderDevRegistro, abrirRelatorioDevolucao, onDevCodigoInput, onDevProdutoInput, addItemDevolucao, renderItensRelatorio, removerItemDevolucao, excluirDevolucao,
-                salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, switchAnaliseSacSubtab, renderAnaliseSacDashboard, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac, finalizarSacCard, renderDevFinalizados, abrirFinalizado, reabrirDevolucao,
+                salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, switchAnaliseSacSubtab, renderAnaliseSacDashboard, gerarRelatorioSac, exportarRelatorioSacExcel, exportarRelatorioSacPdf, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac, finalizarSacCard, renderDevFinalizados, abrirFinalizado, reabrirDevolucao,
         finalizarDevolucaoSaque, renderDevDescarte, exportarDescartePDF, exportarDescarteExcel,
         carregarWmsEnderecos, renderWmsEnderecos, abrirModalWmsEndereco, salvarWmsEndereco, excluirWmsEndereco, verWmsQr, imprimirWmsQr,
         carregarWmsSaldos, renderWmsSaldos, renderWmsTotais, abrirModalWmsSaldo, salvarWmsSaldo, excluirWmsSaldo,
