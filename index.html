@@ -1210,6 +1210,21 @@ body.monitor-mode .queue-card button { display: none !important; }
             </div>
         </div>
 
+        <div class="drawer" id="drawer-exp-quem">
+            <div class="drawer-header">
+                <h2>🚚 Quem está expedindo?</h2>
+                <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
+            </div>
+            <div class="drawer-body">
+                <p style="color:var(--text-sec); font-size:0.9rem; margin-bottom:0.8rem;">Selecione o responsável pela expedição para finalizar o despacho.</p>
+                <select id="exp-quem-sel" class="form-control"></select>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Cancelar</button>
+                <button class="btn btn-success" onclick="app.confirmarExpDespacho()">✔ Confirmar despacho</button>
+            </div>
+        </div>
+
         <div class="drawer" id="drawer-ped-qr">
             <div class="drawer-header">
                 <h2>📱 QR do pedido <span id="ped-qr-titulo"></span></h2>
@@ -3328,6 +3343,7 @@ const app = (function() {
     let _scannerExpInstance = null;
     let _expUltimaLeitura = 0;
     let _expScanAtivo = false;
+    let _expDoAtendimentoId = null;
 
     function pecasPorCaixaDe(item) {
         const p = (state.wmsProdutos || []).find(x => x.id === item.produtoId) || (state.wmsProdutos || []).find(x => (x.sku || '') === item.referencia);
@@ -3378,6 +3394,7 @@ const app = (function() {
         const p = (state.sepPedidos || []).find(x => x.id === pedidoId);
         if (!p) return;
         _expPedidoAtual = p;
+        _expDoAtendimentoId = null;
         _expPedConfirmado = false;
         _expEsperado = {};
         _expScan = {};
@@ -3531,10 +3548,50 @@ const app = (function() {
         const { error } = await db.from('sep_pedidos').update({ status: 'Expedido' }).eq('id', _expPedidoAtual.id).eq('admin_id', state.adminId);
         if (error) { avisar('Erro ao confirmar expedição: ' + error.message); return; }
         pararScannerExp();
+        await carregarSepPedidos();
+        if (_expDoAtendimentoId) {
+            const sel = document.getElementById('exp-quem-sel');
+            if (sel) sel.innerHTML = '<option value="">-- Selecione --</option>' + (state.responsaveisExp || []).map(r => `<option value="${escapeWms(r)}">${escapeWms(r)}</option>`).join('');
+            closeAllDrawers();
+            openDrawer('drawer-exp-quem');
+            renderExpedicao();
+            return;
+        }
         avisar('Pedido expedido com sucesso! ✅');
         closeAllDrawers();
-        await carregarSepPedidos();
         renderExpedicao();
+    }
+
+    async function _finalizarAtendimentoCore(id, atendente) {
+        const agora = new Date();
+        const dia = agora.getDate().toString().padStart(2,'0');
+        const mes = (agora.getMonth()+1).toString().padStart(2,'0');
+        const ano = agora.getFullYear();
+        const horaFin = `${agora.getHours().toString().padStart(2,'0')}:${agora.getMinutes().toString().padStart(2,'0')}`;
+        const dataISO = `${ano}-${mes}-${dia}`;
+        const { error } = await db.from('atendimentos').update({ status: 'Finalizado', data_finalizacao: `${dia}/${mes}/${ano}`, hora_finalizacao: horaFin, finalizado_por: atendente }).eq('id', id);
+        if (error) { avisar('Erro ao finalizar despacho: ' + error.message); await carregarAtendimentos(); return; }
+        const atend = state.atendimentos.find(a => a.id === id);
+        const listaPedidos = atend ? getPedidosListaAtend(atend) : [];
+        const numeros = [...new Set(listaPedidos.map(pl => (pl.num || '').trim()).filter(n => n !== ''))];
+        for (const numPed of numeros) {
+            const pedido = state.pedidos.find(x => (x.num || '').trim() === numPed);
+            if (!pedido) continue;
+            await db.from('pedidos').update({ exp: atendente, dtexp: dataISO, status: 'Concluído' }).eq('id', pedido.id);
+        }
+        await carregarPedidos();
+        await carregarAtendimentos();
+    }
+
+    async function confirmarExpDespacho() {
+        const sel = document.getElementById('exp-quem-sel');
+        const quem = sel ? sel.value.trim() : '';
+        if (!quem) { avisar('Selecione quem está expedindo.'); return; }
+        const atendId = _expDoAtendimentoId;
+        _expDoAtendimentoId = null;
+        if (atendId) await _finalizarAtendimentoCore(atendId, quem);
+        closeAllDrawers();
+        avisar('Pedido expedido e despacho finalizado! ✅');
     }
 
     function pararScannerExp() {
@@ -7532,7 +7589,7 @@ const app = (function() {
                 const badgeNF = (status) => { if (status === 'Aguardando') return `<span class="badge" style="background: var(--danger-bg); color: var(--danger); font-size:11px;">⚠️ ${status}</span>`; if (status === 'Emitida') return `<span class="badge" style="background: var(--success-bg); color: var(--success); font-size:11px;">🧾 ${status}</span>`; if (status === 'Dispensada') return `<span class="badge" style="background: var(--bg-main); color: var(--text-sec); font-size:11px;">${status}</span>`; return `<span class="badge" style="background: var(--info-bg); color: var(--info); font-size:11px;">🔹 ${status}</span>`; };
                 let pedidosHtml = '<div style="margin-top:0.5rem; display: flex; flex-direction:column; gap:0.3rem;">'; pedidosLista.forEach(p => { pedidosHtml += `<div style="display: flex; justify-content:space-between; align-items:center; font-size:13px;"><strong>${escapeWms(p.num)}</strong> ${badgeNF(p.statusNF)}</div>`; }); pedidosHtml += '</div>';
                 const algumAguardando = pedidosLista.some(p => p.statusNF === 'Aguardando');
-                if (a.status === 'Finalizado') { card.style.borderLeftColor = 'var(--success)'; card.style.opacity = '0.8'; let durationHtml = ''; if (a.data === a.dataFinalizacao && a.hora && a.horaFinalizacao) { const start = new Date(`2000-01-01T${a.hora}:00`); const end = new Date(`2000-01-01T${a.horaFinalizacao}:00`); if(end >= start) { const diffMins = Math.round((end - start) / 60000); durationHtml = `<div style="margin-top: 0.5rem;"><span class="badge" style="background: var(--warning-bg); color: var(--warning); padding: 0.3rem 0.6rem;">⏳ Tempo total: ${diffMins} minutos</span></div>`; } } card.innerHTML = `<div><div class="flex justify-between items-center mb-1"><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${escapeWms(a.tipo)}</span></div><h3 style="font-size: 16px; text-decoration: line-through; color: var(--text-sec);">${escapeWms(a.nome)}</h3>${pedidosHtml}${customFieldsHtml}<div style="font-size: 11px; margin-top: 0.8rem; padding-top: 0.5rem; border-top: 1px solid var(--border);"><div style="color: var(--text-sec); margin-bottom: 0.2rem;">Entrada: ${a.data} às ${a.hora}</div><div style="color: var(--success); font-weight: 600;">Saída: ${a.dataFinalizacao} às ${a.horaFinalizacao}</div>${a.finalizadoPor ? `<div style="color: var(--text-sec); margin-top: 0.2rem;">Atendente: <strong style="color: var(--text-main);">${escapeWms(a.finalizadoPor)}</strong></div>` : ''}</div>${durationHtml}</div>`; countFin++; } else { const optsAtend = '<option value="">-- Selecione o atendente --</option>' + (state.responsaveisExp || []).map(r => `<option value="${escapeWms(r)}">${escapeWms(r)}</option>`).join(''); const numsExp = pedidosLista.map(pp => (pp.num || '').trim()).filter(n => n && state.expedicaoNums && state.expedicaoNums.has(n)); const expBtns = numsExp.map(n => `<button class="btn btn-primary req-atend-edit" style="width:100%; justify-content:center" onclick="app.expedirDoAtendimento('${escapeWms(n)}')">🚀 Expedir ${escapeWms(n)}</button>`).join(''); let btnActionHtml = `<div style="display:flex; flex-direction:column; gap:0.4rem;">${expBtns}<select id="sel-atend-${a.id}" class="form-control req-atend-edit" style="width:100%;">${optsAtend}</select><button class="btn btn-success req-atend-edit" style="width:100%; justify-content:center" onclick="app.finalizarAtendimento('${a.id}', this)">✔ Finalizar Despacho</button></div>`; if (algumAguardando) { card.style.borderLeftColor = 'var(--danger)'; card.style.backgroundColor = 'var(--danger-bg)'; } else { card.style.borderLeftColor = 'var(--success)'; card.style.backgroundColor = 'var(--success-bg)'; } card.innerHTML = `<div><div class="flex justify-between items-center mb-1"><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${a.data} - ${a.hora}</span></div><h3 style="font-size: 16px;">${escapeWms(a.nome)}</h3>${pedidosHtml}${customFieldsHtml}</div>${btnActionHtml}`; counts[a.tipo]++; }
+                if (a.status === 'Finalizado') { card.style.borderLeftColor = 'var(--success)'; card.style.opacity = '0.8'; let durationHtml = ''; if (a.data === a.dataFinalizacao && a.hora && a.horaFinalizacao) { const start = new Date(`2000-01-01T${a.hora}:00`); const end = new Date(`2000-01-01T${a.horaFinalizacao}:00`); if(end >= start) { const diffMins = Math.round((end - start) / 60000); durationHtml = `<div style="margin-top: 0.5rem;"><span class="badge" style="background: var(--warning-bg); color: var(--warning); padding: 0.3rem 0.6rem;">⏳ Tempo total: ${diffMins} minutos</span></div>`; } } card.innerHTML = `<div><div class="flex justify-between items-center mb-1"><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${escapeWms(a.tipo)}</span></div><h3 style="font-size: 16px; text-decoration: line-through; color: var(--text-sec);">${escapeWms(a.nome)}</h3>${pedidosHtml}${customFieldsHtml}<div style="font-size: 11px; margin-top: 0.8rem; padding-top: 0.5rem; border-top: 1px solid var(--border);"><div style="color: var(--text-sec); margin-bottom: 0.2rem;">Entrada: ${a.data} às ${a.hora}</div><div style="color: var(--success); font-weight: 600;">Saída: ${a.dataFinalizacao} às ${a.horaFinalizacao}</div>${a.finalizadoPor ? `<div style="color: var(--text-sec); margin-top: 0.2rem;">Atendente: <strong style="color: var(--text-main);">${escapeWms(a.finalizadoPor)}</strong></div>` : ''}</div>${durationHtml}</div>`; countFin++; } else { const optsAtend = '<option value="">-- Selecione o atendente --</option>' + (state.responsaveisExp || []).map(r => `<option value="${escapeWms(r)}">${escapeWms(r)}</option>`).join(''); const numsExp = pedidosLista.map(pp => (pp.num || '').trim()).filter(n => n && state.expedicaoNums && state.expedicaoNums.has(n)); const expBtns = numsExp.map(n => `<button class="btn btn-primary req-atend-edit" style="width:100%; justify-content:center" onclick="app.expedirDoAtendimento('${escapeWms(n)}', '${a.id}')">🚀 Expedir ${escapeWms(n)}</button>`).join(''); let btnActionHtml = `<div style="display:flex; flex-direction:column; gap:0.4rem;">${expBtns}<select id="sel-atend-${a.id}" class="form-control req-atend-edit" style="width:100%;">${optsAtend}</select><button class="btn btn-success req-atend-edit" style="width:100%; justify-content:center" onclick="app.finalizarAtendimento('${a.id}', this)">✔ Finalizar Despacho</button></div>`; if (algumAguardando) { card.style.borderLeftColor = 'var(--danger)'; card.style.backgroundColor = 'var(--danger-bg)'; } else { card.style.borderLeftColor = 'var(--success)'; card.style.backgroundColor = 'var(--success-bg)'; } card.innerHTML = `<div><div class="flex justify-between items-center mb-1"><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${a.data} - ${a.hora}</span></div><h3 style="font-size: 16px;">${escapeWms(a.nome)}</h3>${pedidosHtml}${customFieldsHtml}</div>${btnActionHtml}`; counts[a.tipo]++; }
                 const btnX = document.createElement('button'); btnX.innerHTML = '✕'; btnX.title = 'Excluir atendimento'; btnX.style.cssText = 'position:absolute; top:8px; right:8px; z-index:6; background:transparent; border:none; color:var(--danger); font-size:20px; cursor:pointer; padding:4px 8px; line-height:1;';
 const btnEdit = document.createElement('button');
 btnEdit.innerHTML = '✏️';
@@ -8219,11 +8276,12 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         } catch (e) { console.error(e); }
     }
 
-    async function expedirDoAtendimento(numero) {
+    async function expedirDoAtendimento(numero, atendId) {
         await carregarSepPedidos();
         const ped = (state.sepPedidos || []).find(x => (x.numero || '').trim() === String(numero).trim() && x.status === 'Concluído');
         if (!ped) { avisar('Este pedido não está mais na Expedição do Estoque.'); return; }
         abrirExpedicao(ped.id);
+        _expDoAtendimentoId = atendId || null;
     }
 
     async function carregarAtendimentos() { if (!state.adminId) return; const { data, error } = await db.from('atendimentos').select('*').eq('admin_id', state.adminId).order('created_at', { ascending: false }); if(error) { console.error('Erro', error.message); return; } if(data) { state.atendimentos = data.map(a => ({ id: a.id, num: a.num || '', nome: a.nome || '', tipo: a.tipo || '', statusNF: a.status_nf || 'Aguardando', data: a.data || '', hora: a.hora || '', status: a.status || 'Aguardando', dataFinalizacao: a.data_finalizacao || '', horaFinalizacao: a.hora_finalizacao || '', finalizadoPor: a.finalizado_por || '', customData: a.custom_data || {} })); renderAtendimentos(); carregarExpedicaoNums(); } }
@@ -9081,7 +9139,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         toggleFieldAtendManager, toggleFieldAtendOptions, adicionarCampoAtend, editarCampoAtend, excluirCampoAtend, moverCampoAtend, 
 
         handleDragStart, handleDragOver, handleDrop, handleTabDragStart, handleTabDragOver, handleTabDrop, 
-        salvarAtendimento, editarAtendimento, finalizarAtendimento, expedirDoAtendimento, excluirAtendimento, liberarNF, liberarNFEmail, abrirModalLiberarNF, fecharModalLiberarNF, confirmarLiberarNF, registrarNotaFiscal, renderMotoristas, salvarMotorista, editarMotorista, excluirMotorista,
+        salvarAtendimento, editarAtendimento, finalizarAtendimento, expedirDoAtendimento, confirmarExpDespacho, excluirAtendimento, liberarNF, liberarNFEmail, abrirModalLiberarNF, fecharModalLiberarNF, confirmarLiberarNF, registrarNotaFiscal, renderMotoristas, salvarMotorista, editarMotorista, excluirMotorista,
         adicionarFilialDestino, analisarReposicao, filtrarReposicao, exportarReposicao, filtrarPorFilial,
         handlePerfilChange, salvarUsuario, editarUsuario, excluirUsuario, alternarCargoUsuario
     };
