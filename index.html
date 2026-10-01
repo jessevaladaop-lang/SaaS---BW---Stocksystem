@@ -1673,6 +1673,7 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <input type="hidden" id="dev-prod-id">
                 <div class="form-group"><label>Referência / Código *</label><input type="text" id="dev-prod-ref" class="form-control" placeholder="Ex: 153701"></div>
                 <div class="form-group"><label>Descrição</label><input type="text" id="dev-prod-desc" class="form-control" placeholder="Descrição do produto"></div>
+                <div class="form-group"><label>Kit — código da 2ª caixa (opcional)</label><input type="text" id="dev-prod-kit2" class="form-control" placeholder="Ex: código da placa solar"><small style="color:var(--text-sec); display:block; margin-top:0.2rem;">Preencha só se o produto for enviado em 2 caixas de códigos diferentes (ex.: refletor + placa).</small></div>
             </div>
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Cancelar</button>
@@ -3291,6 +3292,12 @@ const app = (function() {
         return ppc > 0 ? ppc : 1;
     }
 
+    function pecasPorCaixaDeRef(ref) {
+        const p = (state.wmsProdutos || []).find(x => (x.sku || '') === ref);
+        const ppc = p ? (p.pecasPorCaixa || 1) : 1;
+        return ppc > 0 ? ppc : 1;
+    }
+
     function renderExpedicao() {
         const cont = document.getElementById('sep-exp-lista');
         if (!cont) return;
@@ -3507,11 +3514,21 @@ const app = (function() {
     function renderMontarCaixaItens() {
         const cont = document.getElementById('mc-itens');
         if (!cont || !_sepPedidoAtual) return;
-        const itens = (state.sepItens || []).filter(i => i.pedidoId === _sepPedidoAtual.id && (i.qtdSeparada || 0) < (i.qtdSolicitada || 0));
-        if (itens.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec); padding:0.8rem;">Todos os itens já estão separados.</p>'; return; }
-        cont.innerHTML = itens.map(i => {
-            const falta = (i.qtdSolicitada || 0) - (i.qtdSeparada || 0);
-            return `<div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; padding:0.5rem 0.7rem; border-bottom:1px solid var(--border);"><div style="flex:1; min-width:0;"><div><strong>${escapeWms(i.referencia)}</strong>${i.descricao ? ' — ' + escapeWms(i.descricao) : ''}</div><div style="color:var(--text-sec); font-size:0.8rem;">falta ${falta} pçs</div></div><input type="number" class="form-control mc-qty" data-item="${i.id}" data-ref="${escapeWms(i.referencia)}" data-falta="${falta}" min="0" max="${falta}" placeholder="0" style="width:100px;"></div>`;
+        const itens = (state.sepItens || []).filter(i => i.pedidoId === _sepPedidoAtual.id);
+        const linhas = [];
+        itens.forEach(i => {
+            const faltaA = (i.qtdSolicitada || 0) - (i.qtdSeparada || 0);
+            if (faltaA > 0) linhas.push({ itemId: i.id, parte: 'A', ref: i.referencia, falta: faltaA });
+            if (i.kitParte2Ref) {
+                const faltaB = (i.qtdSolicitada || 0) - (i.qtdSeparadaP2 || 0);
+                if (faltaB > 0) linhas.push({ itemId: i.id, parte: 'B', ref: i.kitParte2Ref, falta: faltaB });
+            }
+        });
+        if (linhas.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec); padding:0.8rem;">Todos os itens já estão separados.</p>'; return; }
+        cont.innerHTML = linhas.map(l => {
+            const prod = (state.devProdutos || []).find(dp => dp.referencia === l.ref);
+            const nome = prod ? (prod.descricao || '') : '';
+            return `<div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; padding:0.5rem 0.7rem; border-bottom:1px solid var(--border);"><div style="flex:1; min-width:0;"><div><strong>${escapeWms(l.ref)}</strong>${l.parte === 'B' ? ' <span style="font-size:0.7rem; color:var(--accent);">(parte 2)</span>' : ''}${nome ? ' — ' + escapeWms(nome) : ''}</div><div style="color:var(--text-sec); font-size:0.8rem;">falta ${l.falta} pçs</div></div><input type="number" class="form-control mc-qty" data-item="${l.itemId}" data-parte="${l.parte}" data-ref="${escapeWms(l.ref)}" data-falta="${l.falta}" min="0" max="${l.falta}" placeholder="0" style="width:100px;"></div>`;
         }).join('');
     }
 
@@ -3533,22 +3550,28 @@ const app = (function() {
             if (q <= 0) continue;
             const falta = parseInt(inp.getAttribute('data-falta')) || 0;
             if (q > falta) { avisar(`${inp.getAttribute('data-ref')}: máximo ${falta} pçs.`); return; }
-            selecionados.push({ id: inp.getAttribute('data-item'), ref: inp.getAttribute('data-ref'), qtd: q });
+            selecionados.push({ id: inp.getAttribute('data-item'), parte: inp.getAttribute('data-parte') || 'A', ref: inp.getAttribute('data-ref'), qtd: q });
         }
         if (selecionados.length === 0) { avisar('Informe a quantidade de pelo menos um produto.'); return; }
         const separador = (document.getElementById('sep-sep-separador') && document.getElementById('sep-sep-separador').value) || (_sepPedidoAtual && _sepPedidoAtual.separador) || '';
         try {
-            for (const sel of selecionados) {
-                const item = (state.sepItens || []).find(x => x.id === sel.id);
+            const porItem = {};
+            selecionados.forEach(sl => { if (!porItem[sl.id]) porItem[sl.id] = { a: 0, b: 0 }; if (sl.parte === 'B') porItem[sl.id].b += sl.qtd; else porItem[sl.id].a += sl.qtd; });
+            for (const itemId of Object.keys(porItem)) {
+                const item = (state.sepItens || []).find(x => x.id === itemId);
                 if (!item) continue;
-                const novaQtd = (item.qtdSeparada || 0) + sel.qtd;
-                const conf = novaQtd >= (item.qtdSolicitada || 0);
-                const { error } = await db.from('sep_itens').update({ qtd_separada: novaQtd, confirmado: conf }).eq('id', sel.id).eq('admin_id', state.adminId);
+                const novaA = (item.qtdSeparada || 0) + porItem[itemId].a;
+                const novaB = (item.qtdSeparadaP2 || 0) + porItem[itemId].b;
+                const isKit = !!item.kitParte2Ref;
+                const conf = novaA >= (item.qtdSolicitada || 0) && (!isKit || novaB >= (item.qtdSolicitada || 0));
+                const upd = { qtd_separada: novaA, confirmado: conf };
+                if (isKit) upd.qtd_separada_p2 = novaB;
+                const { error } = await db.from('sep_itens').update(upd).eq('id', itemId).eq('admin_id', state.adminId);
                 if (error) throw error;
             }
             await carregarSepPedidos();
             const itensP = (state.sepItens || []).filter(i => i.pedidoId === _sepPedidoAtual.id);
-            const todosOk = itensP.length > 0 && itensP.every(i => i.confirmado && i.qtdSeparada >= i.qtdSolicitada);
+            const todosOk = itensP.length > 0 && itensP.every(i => i.confirmado);
             await db.from('sep_pedidos').update({ status: todosOk ? 'Concluído' : 'Conferência', separador }).eq('id', _sepPedidoAtual.id).eq('admin_id', state.adminId);
             const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
             const conteudo = selecionados.map(sl => `${sl.ref}=${sl.qtd}`).join(';');
@@ -3624,7 +3647,7 @@ const app = (function() {
             return (i.qtdSeparada || 0) < cheiasNec * ppc;
         });
         if (faltamCheias.length > 0) { avisar('Ainda faltam caixas cheias: ' + faltamCheias.map(i => i.referencia).join(', ')); return; }
-        const temAvulsas = itens.some(i => (i.qtdSeparada || 0) < (i.qtdSolicitada || 0));
+        const temAvulsas = itens.some(i => (i.qtdSeparada || 0) < (i.qtdSolicitada || 0) || (i.kitParte2Ref && (i.qtdSeparadaP2 || 0) < (i.qtdSolicitada || 0)));
         const novoStatus = temAvulsas ? 'Conferência' : 'Concluído';
         const ok = await confirmar(temAvulsas
             ? `Finalizar separação do pedido ${_sepPedidoAtual.numero}? As caixas cheias estão OK — ele vai para a CONFERÊNCIA (peças avulsas).`
@@ -4833,7 +4856,10 @@ const app = (function() {
         const { data: itens, error: e2 } = await db.from('sep_itens').select('*').eq('admin_id', state.adminId);
         if (e2) { console.error('Erro ao carregar itens QR:', e2.message); }
         state.sepPedidos = (peds || []).map(p => ({ id: p.id, numero: p.numero, vendedor: p.vendedor || '', cliente: p.cliente || '', status: p.status || 'Pendente', separador: p.separador || '' }));
-        state.sepItens = (itens || []).map(i => ({ id: i.id, pedidoId: i.pedido_id, produtoId: i.produto_id, referencia: i.referencia || '', descricao: i.descricao || '', qtdSolicitada: i.qtd_solicitada || 0, qtdSeparada: i.qtd_separada || 0, confirmado: i.confirmado === true }));
+        state.sepItens = (itens || []).map(i => {
+            const prodBase = (state.devProdutos || []).find(dp => dp.referencia === (i.referencia || ''));
+            return { id: i.id, pedidoId: i.pedido_id, produtoId: i.produto_id, referencia: i.referencia || '', descricao: i.descricao || '', qtdSolicitada: i.qtd_solicitada || 0, qtdSeparada: i.qtd_separada || 0, qtdSeparadaP2: i.qtd_separada_p2 || 0, confirmado: i.confirmado === true, kitParte2Ref: prodBase ? (prodBase.kitParte2Ref || '') : '' };
+        });
         renderSepPedidos();
     }
 
@@ -5026,15 +5052,24 @@ const app = (function() {
         cont.innerHTML = '';
         if (itens.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec);">Nenhum item encontrado.</p>'; return; }
         itens.forEach(i => {
-            const ok = i.confirmado && i.qtdSeparada >= i.qtdSolicitada;
+            const isKit = !!i.kitParte2Ref;
+            const okA = (i.qtdSeparada || 0) >= i.qtdSolicitada;
+            const okB = !isKit || (i.qtdSeparadaP2 || 0) >= i.qtdSolicitada;
+            const ok = okA && okB;
             const card = document.createElement('div');
             card.style.cssText = `border:1px solid ${ok ? 'var(--success,#28a745)' : 'var(--border)'}; border-radius:8px; padding:0.8rem 1rem; background:${ok ? 'rgba(34,197,94,0.08)' : 'var(--card-bg,transparent)'};`;
+            let prog = `Solicitado: <strong>${i.qtdSolicitada} pçs</strong>`;
+            if (isKit) {
+                prog += ` · P1 (${escapeWms(i.referencia)}): <strong>${i.qtdSeparada || 0}/${i.qtdSolicitada}</strong> · P2 (${escapeWms(i.kitParte2Ref)}): <strong>${i.qtdSeparadaP2 || 0}/${i.qtdSolicitada}</strong>`;
+            } else if (i.qtdSeparada > 0) {
+                prog += ` · Separado: <strong style="color:var(--success,#28a745);">${i.qtdSeparada} pçs</strong>`;
+            }
             card.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
                     <div>
-                        <div style="font-weight:700; font-size:1.05rem;">${escapeWms(i.referencia)}</div>
+                        <div style="font-weight:700; font-size:1.05rem;">${escapeWms(i.referencia)}${isKit ? ' <span style="font-size:0.7rem; color:var(--accent);">🧩 kit</span>' : ''}</div>
                         <div style="color:var(--text-sec); font-size:0.88rem; margin:0.2rem 0;">${escapeWms(i.descricao)}</div>
-                        <div style="font-size:0.9rem;">Solicitado: <strong>${i.qtdSolicitada} pçs</strong>${i.qtdSeparada > 0 ? ` · Separado: <strong style="color:var(--success,#28a745);">${i.qtdSeparada} pçs</strong>` : ''}</div>
+                        <div style="font-size:0.9rem;">${prog}</div>
                     </div>
                     <div style="text-align:center;">
                         ${ok
@@ -5051,13 +5086,26 @@ const app = (function() {
     let _sepPpcAtual = 1;
     let _sepQtdIni = 0;
     let _sepRestoAtual = 0;
+    let _sepSolic = 0;
+    let _sepPecasBip = 0;
+    let _sepIsKit = false;
+    let _sepRefB = '';
+    let _sepPpcB = 1;
+    let _sepQtdIniB = 0;
+    let _sepPecasBipB = 0;
 
     function renderSepConfContador() {
         const el = document.getElementById('sep-conf-contador');
         if (!el || !_sepItemAtual) return;
-        const pecas = _sepCaixasBip * _sepPpcAtual;
-        const ok = _sepCaixasNec > 0 && _sepCaixasBip >= _sepCaixasNec;
-        el.innerHTML = `<strong style="color:${ok ? 'var(--success,#28a745)' : 'var(--accent)'};">${_sepCaixasBip}/${_sepCaixasNec} caixa(s)</strong> · ${pecas} pçs${ok ? ' ✅' : ''}`;
+        const totalA = _sepQtdIni + _sepPecasBip;
+        const okA = totalA >= _sepSolic;
+        if (_sepIsKit) {
+            const totalB = _sepQtdIniB + _sepPecasBipB;
+            const okB = totalB >= _sepSolic;
+            el.innerHTML = `<div><strong style="color:${okA ? 'var(--success,#28a745)' : 'var(--accent)'};">Parte 1: ${totalA}/${_sepSolic} pçs</strong>${okA ? ' ✅' : ''}</div><div><strong style="color:${okB ? 'var(--success,#28a745)' : 'var(--accent)'};">Parte 2: ${totalB}/${_sepSolic} pçs</strong>${okB ? ' ✅' : ''}</div>`;
+        } else {
+            el.innerHTML = `<strong style="color:${okA ? 'var(--success,#28a745)' : 'var(--accent)'};">${totalA}/${_sepSolic} pçs</strong>${okA ? ' ✅' : ''}`;
+        }
     }
 
     function abrirConfirmarItemSep(itemId) {
@@ -5067,19 +5115,31 @@ const app = (function() {
         if (!item) return;
         _sepItemAtual = item;
         _sepQrConfirmado = false;
+        _sepSolic = item.qtdSolicitada || 0;
         _sepPpcAtual = pecasPorCaixaDe(item);
         _sepQtdIni = item.qtdSeparada || 0;
-        const restante = Math.max(0, (item.qtdSolicitada || 0) - _sepQtdIni);
-        _sepCaixasNec = Math.floor(restante / _sepPpcAtual);
-        _sepRestoAtual = restante - _sepCaixasNec * _sepPpcAtual;
-        _sepCaixasBip = 0;
-        document.getElementById('sep-conf-info').innerHTML = `<div style="font-weight:700; font-size:1.1rem;">${escapeWms(item.referencia)}</div><div style="color:var(--text-sec); font-size:0.9rem;">${escapeWms(item.descricao)}</div><div style="margin-top:0.4rem;">Solicitado: <strong>${item.qtdSolicitada} pçs</strong> · Já separado: <strong>${_sepQtdIni} pçs</strong> · Caixa: <strong>${_sepPpcAtual} pçs</strong></div><div style="margin-top:0.2rem;">Faltam: <strong>${restante} pçs</strong> = <strong>${_sepCaixasNec} caixa(s) cheia(s)</strong>${_sepRestoAtual > 0 ? ` + <strong>${_sepRestoAtual} pçs avulsas</strong>` : ''}</div>`;
-        const st = document.getElementById('sep-conf-qr-status');
-        if (_sepCaixasNec <= 0) {
-            st.innerHTML = _sepRestoAtual > 0 ? `⚠️ Só faltam ${_sepRestoAtual} pçs avulsas — feche pelo botão "📦 Montar caixa".` : '✅ Item já separado.';
-            st.style.background = _sepRestoAtual > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)';
+        _sepPecasBip = 0;
+        _sepIsKit = !!item.kitParte2Ref;
+        _sepRefB = item.kitParte2Ref || '';
+        _sepPpcB = _sepIsKit ? pecasPorCaixaDeRef(_sepRefB) : 1;
+        _sepQtdIniB = item.qtdSeparadaP2 || 0;
+        _sepPecasBipB = 0;
+        const restA = Math.max(0, _sepSolic - _sepQtdIni);
+        const restB = Math.max(0, _sepSolic - _sepQtdIniB);
+        let info = `<div style="font-weight:700; font-size:1.1rem;">${escapeWms(item.referencia)}${_sepIsKit ? ' <span style="font-size:0.7rem; color:var(--accent);">🧩 kit</span>' : ''}</div><div style="color:var(--text-sec); font-size:0.9rem;">${escapeWms(item.descricao)}</div><div style="margin-top:0.4rem;">Solicitado: <strong>${_sepSolic} pçs</strong></div>`;
+        if (_sepIsKit) {
+            info += `<div style="margin-top:0.3rem; font-size:0.9rem;">Parte 1 (<strong>${escapeWms(item.referencia)}</strong>): faltam <strong>${restA}</strong> · Parte 2 (<strong>${escapeWms(_sepRefB)}</strong>): faltam <strong>${restB}</strong></div>`;
         } else {
-            st.innerHTML = '🔒 Escaneie as caixas cheias deste produto.';
+            info += `<div style="margin-top:0.3rem; font-size:0.9rem;">Já separado: <strong>${_sepQtdIni} pçs</strong> · Caixa padrão: <strong>${_sepPpcAtual} pçs</strong> · Faltam: <strong>${restA} pçs</strong></div>`;
+        }
+        document.getElementById('sep-conf-info').innerHTML = info;
+        const st = document.getElementById('sep-conf-qr-status');
+        const completo = restA <= 0 && (!_sepIsKit || restB <= 0);
+        if (completo) {
+            st.innerHTML = '✅ Item já separado.';
+            st.style.background = 'rgba(34,197,94,0.15)';
+        } else {
+            st.innerHTML = _sepIsKit ? '🔒 Bipe as caixas das DUAS partes (código 1 e código 2). O que sobrar vai para a Conferência.' : '🔒 Bipe as caixas (padrão ou de lote). O que sobrar vai para a Conferência.';
             st.style.background = 'var(--hover-bg)';
         }
         document.getElementById('sep-conf-qtd').value = '';
@@ -5095,8 +5155,7 @@ const app = (function() {
 
     function iniciarScannerSep() {
         if (!_sepItemAtual) return;
-        if (_sepCaixasNec <= 0) { avisar('Este produto não tem caixas cheias a bipar. Use "📦 Montar caixa" para o restante.'); return; }
-        const esperado = 'BW-PROD:' + _sepItemAtual.referencia;
+        if ((_sepQtdIni + _sepPecasBip >= _sepSolic) && (!_sepIsKit || _sepQtdIniB + _sepPecasBipB >= _sepSolic)) { avisar('Este item já atingiu a quantidade solicitada.'); return; }
         if (typeof Html5Qrcode === 'undefined') { avisar('Biblioteca de leitura de QR não carregada. Recarregue a página.'); return; }
         pararScannerSep();
         const readerEl = document.getElementById('sep-conf-reader');
@@ -5106,7 +5165,7 @@ const app = (function() {
         _scannerSepInstance.start(
             { facingMode: 'environment' },
             { fps: 10, qrbox: { width: 220, height: 220 } },
-            (decodedText) => { processarCaixaSep((decodedText || '').trim(), esperado); },
+            (decodedText) => { processarCaixaSep((decodedText || '').trim()); },
             () => { /* ignora frames sem QR */ }
         ).catch(err => {
             avisar('Não foi possível acessar a câmera: ' + err);
@@ -5114,7 +5173,7 @@ const app = (function() {
         });
     }
 
-    function processarCaixaSep(lido, esperado) {
+    function processarCaixaSep(lido) {
         if (!_sepScanAtivo) return;
         const agora = Date.now();
         if (agora - _sepUltimaLeitura < 1200) return;
@@ -5122,26 +5181,33 @@ const app = (function() {
         const st = document.getElementById('sep-conf-qr-status');
         const log = document.getElementById('sep-conf-log');
         const addLog = (html, cor) => { if (log) { const d = document.createElement('div'); d.style.cssText = `padding:0.3rem 0.6rem; border-radius:4px; margin-bottom:0.3rem; font-size:0.85rem; background:${cor};`; d.innerHTML = html; log.prepend(d); } };
-        if (lido !== esperado) {
-            addLog(`❌ QR <strong>${escapeWms(lido)}</strong> não é do produto <strong>${escapeWms(_sepItemAtual.referencia)}</strong>.`, 'rgba(239,68,68,0.15)');
-            if (typeof tocarAlerta === 'function') tocarAlerta(3);
-            return;
+        let refLido = '', qtd = 0, lote = '', isProd = false;
+        if (lido.startsWith('BW-PROD:')) { refLido = lido.substring(8); isProd = true; }
+        else if (lido.startsWith('BW-LOTE:')) { const parts = lido.split(':'); refLido = parts[1] || ''; qtd = parseInt(parts[2]) || 0; lote = parts[3] || ''; }
+        else { addLog(`❌ QR <strong>${escapeWms(lido)}</strong> inválido.`, 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
+        let parte, ppc;
+        if (refLido === _sepItemAtual.referencia) { parte = 'A'; ppc = _sepPpcAtual; }
+        else if (_sepIsKit && refLido === _sepRefB) { parte = 'B'; ppc = _sepPpcB; }
+        else { addLog(`❌ Caixa de <strong>${escapeWms(refLido || '?')}</strong> não é deste item.`, 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
+        if (isProd) qtd = ppc;
+        if (qtd <= 0) { addLog('❌ QR de caixa inválido.', 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
+        const ini = parte === 'A' ? _sepQtdIni : _sepQtdIniB;
+        const bip = parte === 'A' ? _sepPecasBip : _sepPecasBipB;
+        if (ini + bip + qtd > _sepSolic) {
+            const faltam = _sepSolic - (ini + bip);
+            addLog(`⚠️ Parte ${parte}: essa caixa (${qtd}) passa do necessário — faltam só ${faltam} pçs (avulsas). Monte na Conferência.`, 'rgba(245,158,11,0.18)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return;
         }
-        if (_sepCaixasBip >= _sepCaixasNec) {
-            addLog(`⚠️ Você já bipou as ${_sepCaixasNec} caixa(s) necessárias deste produto.`, 'rgba(245,158,11,0.18)');
-            if (typeof tocarAlerta === 'function') tocarAlerta(3);
-            return;
-        }
-        _sepCaixasBip++;
+        if (parte === 'A') _sepPecasBip += qtd; else _sepPecasBipB += qtd;
         _sepQrConfirmado = true;
-        addLog(`✅ Caixa ${_sepCaixasBip}/${_sepCaixasNec} (${_sepCaixasBip * _sepPpcAtual} pçs)`, 'rgba(34,197,94,0.15)');
+        const nA = _sepQtdIni + _sepPecasBip, nB = _sepQtdIniB + _sepPecasBipB;
+        addLog(`✅ Parte ${parte} ${lote ? '(lote ' + escapeWms(lote) + ') ' : ''}+${qtd} — ${parte === 'A' ? nA : nB}/${_sepSolic} pçs`, 'rgba(34,197,94,0.15)');
         if (typeof tocarAlerta === 'function') tocarAlerta(1);
+        document.getElementById('sep-conf-qtd').value = nA;
+        document.getElementById('sep-conf-btn').disabled = false;
         renderSepConfContador();
-        if (_sepCaixasBip >= _sepCaixasNec) {
-            st.innerHTML = `✅ ${_sepCaixasNec} caixa(s) cheia(s) bipada(s)!` + (_sepRestoAtual > 0 ? ` Ainda faltam ${_sepRestoAtual} pçs avulsas — use "📦 Montar caixa".` : ' Confirme a separação.');
+        if (nA >= _sepSolic && (!_sepIsKit || nB >= _sepSolic)) {
+            st.innerHTML = '✅ Quantidade completa! Confirme a separação.';
             st.style.background = 'rgba(34,197,94,0.15)';
-            document.getElementById('sep-conf-qtd').value = _sepQtdIni + _sepCaixasBip * _sepPpcAtual;
-            document.getElementById('sep-conf-btn').disabled = false;
             pararScannerSep();
         }
     }
@@ -5160,16 +5226,19 @@ const app = (function() {
     async function confirmarItemSep() {
         if (!_sepItemAtual || !_sepPedidoAtual) return;
         if (!_sepQrConfirmado) { avisar('Escaneie o QR do produto antes de confirmar.'); return; }
-        const qtd = parseInt(document.getElementById('sep-conf-qtd').value);
-        if (isNaN(qtd) || qtd <= 0) { avisar('Bipe as caixas cheias antes de confirmar.'); return; }
+        const qtdA = _sepQtdIni + _sepPecasBip;
+        const qtdB = _sepQtdIniB + _sepPecasBipB;
+        if (qtdA <= 0 && (!_sepIsKit || qtdB <= 0)) { avisar('Bipe as caixas antes de confirmar.'); return; }
         const separador = document.getElementById('sep-sep-separador').value;
-        const conf = qtd >= (_sepItemAtual.qtdSolicitada || 0);
+        const conf = qtdA >= _sepSolic && (!_sepIsKit || qtdB >= _sepSolic);
         try {
-            const { error } = await db.from('sep_itens').update({ qtd_separada: qtd, confirmado: conf }).eq('id', _sepItemAtual.id).eq('admin_id', state.adminId);
+            const upd = { qtd_separada: qtdA, confirmado: conf };
+            if (_sepIsKit) upd.qtd_separada_p2 = qtdB;
+            const { error } = await db.from('sep_itens').update(upd).eq('id', _sepItemAtual.id).eq('admin_id', state.adminId);
             if (error) throw error;
             // atualiza status do pedido
-            const itens = (state.sepItens || []).map(i => i.id === _sepItemAtual.id ? { ...i, qtdSeparada: qtd, confirmado: conf } : i).filter(i => i.pedidoId === _sepPedidoAtual.id);
-            const todosOk = itens.every(i => i.confirmado && i.qtdSeparada >= i.qtdSolicitada);
+            const itens = (state.sepItens || []).map(i => i.id === _sepItemAtual.id ? { ...i, qtdSeparada: qtdA, qtdSeparadaP2: qtdB, confirmado: conf } : i).filter(i => i.pedidoId === _sepPedidoAtual.id);
+            const todosOk = itens.every(i => i.confirmado);
             const novoStatus = 'Em separação';
             await db.from('sep_pedidos').update({ status: novoStatus, separador }).eq('id', _sepPedidoAtual.id).eq('admin_id', state.adminId);
             pararScannerSep();
@@ -5206,7 +5275,7 @@ const app = (function() {
         const { data, error } = await db.from('dev_produtos').select('*').eq('admin_id', state.adminId).order('descricao', { ascending: true });
         if (error) { console.error('Erro ao carregar base devolução:', error.message); return; }
         if (data) {
-            state.devProdutos = data.map(p => ({ id: p.id, referencia: p.referencia || '', descricao: p.descricao || '' }));
+            state.devProdutos = data.map(p => ({ id: p.id, referencia: p.referencia || '', descricao: p.descricao || '', kitParte2Ref: p.kit_parte2_ref || '' }));
             renderDevBase();
         }
     }
@@ -5225,7 +5294,7 @@ const app = (function() {
         if (lista.length === 0) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-sec); padding:1rem;">Nenhum produto na base. Importe do Excel acima.</td></tr>'; return; }
         exibir.forEach(p => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td><strong>${escapeWms(p.referencia)}</strong></td><td>${escapeWms(p.descricao)}</td><td><button class="btn-icon" title="QR Code" onclick="app.verDevQr('${p.id}')">🏷️</button> <button class="btn-icon" title="Editar" onclick="app.abrirModalDevProduto('${p.id}')">✏️</button> <button class="btn-icon" title="Excluir" style="color:var(--danger)" onclick="app.excluirDevProduto('${p.id}')">🗑️</button></td>`;
+            tr.innerHTML = `<td><strong>${escapeWms(p.referencia)}</strong>${p.kitParte2Ref ? ' <span style="font-size:0.7rem; color:var(--accent); border:1px solid var(--accent); padding:0 0.3rem; border-radius:8px;">🧩 kit</span>' : ''}</td><td>${escapeWms(p.descricao)}</td><td><button class="btn-icon" title="QR Code" onclick="app.verDevQr('${p.id}')">🏷️</button> <button class="btn-icon" title="Editar" onclick="app.abrirModalDevProduto('${p.id}')">✏️</button> <button class="btn-icon" title="Excluir" style="color:var(--danger)" onclick="app.excluirDevProduto('${p.id}')">🗑️</button></td>`;
             tbody.appendChild(tr);
         });
         if (lista.length > 300) {
@@ -5277,10 +5346,12 @@ const app = (function() {
             document.getElementById('dev-prod-modal-titulo').textContent = 'Editar Produto';
             document.getElementById('dev-prod-ref').value = p.referencia;
             document.getElementById('dev-prod-desc').value = p.descricao;
+            document.getElementById('dev-prod-kit2').value = p.kitParte2Ref || '';
         } else {
             document.getElementById('dev-prod-modal-titulo').textContent = 'Novo Produto';
             document.getElementById('dev-prod-ref').value = '';
             document.getElementById('dev-prod-desc').value = '';
+            document.getElementById('dev-prod-kit2').value = '';
         }
         openDrawer('drawer-dev-produto');
     }
@@ -5289,8 +5360,10 @@ const app = (function() {
         const id = document.getElementById('dev-prod-id').value;
         const ref = document.getElementById('dev-prod-ref').value.trim();
         const desc = document.getElementById('dev-prod-desc').value.trim();
+        const kit2 = document.getElementById('dev-prod-kit2').value.trim();
         if (!ref) { avisar('Informe a referência.'); return; }
-        const payload = { referencia: ref, descricao: desc };
+        if (kit2 && kit2 === ref) { avisar('A 2ª caixa do kit não pode ser o mesmo código do produto.'); return; }
+        const payload = { referencia: ref, descricao: desc, kit_parte2_ref: kit2 || null };
         let error;
         if (id) { ({ error } = await db.from('dev_produtos').update(payload).eq('id', id)); }
         else { ({ error } = await db.from('dev_produtos').insert(payload)); }
