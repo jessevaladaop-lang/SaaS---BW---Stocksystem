@@ -1288,6 +1288,10 @@ body.monitor-mode .queue-card button { display: none !important; }
                     <div id="mc-qr-canvas" style="display:flex; justify-content:center;"></div>
                     <button class="btn btn-secondary" onclick="app.imprimirCaixaMontada()" style="margin-top:0.8rem;">🖨️ Imprimir QR</button>
                 </div>
+                <div id="mc-montadas" style="display:none; margin-top:1rem; border-top:1px dashed var(--border); padding-top:0.8rem;">
+                    <div style="font-weight:600; font-size:0.85rem; margin-bottom:0.4rem;">Caixas montadas nesta sessão:</div>
+                    <div id="mc-montadas-list"></div>
+                </div>
             </div>
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
@@ -1655,11 +1659,50 @@ body.monitor-mode .queue-card button { display: none !important; }
                     <div id="dev-qr-desc" style="font-size:0.9rem; color:#333; margin-bottom:0.8rem;"></div>
                     <div id="dev-qr-canvas" style="display:inline-block;"></div>
                 </div>
+                <div id="dev-qr2-wrap" style="display:none; margin-top:1rem;">
+                    <div style="display:inline-block; background:#fff; color:#000; border-radius:10px; padding:1.2rem 1.5rem;">
+                        <div id="dev-qr2-ref" style="font-size:1.4rem; font-weight:700; margin-bottom:0.3rem; color:#000;"></div>
+                        <div id="dev-qr2-desc" style="font-size:0.9rem; color:#333; margin-bottom:0.8rem;">Parte 2 do kit</div>
+                        <div id="dev-qr2-canvas" style="display:inline-block;"></div>
+                    </div>
+                    <div><button class="btn btn-secondary" onclick="app.imprimirDevQr2()" style="margin-top:0.6rem;">🖨️ Imprimir Parte 2</button></div>
+                </div>
                 <p style="color:var(--text-sec); font-size:0.85rem; margin-top:1rem;">Tire o print deste cartão branco e cole no Word para imprimir vários QRs por folha.</p>
             </div>
             <div class="drawer-footer">
                 <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
                 <button class="btn btn-primary" onclick="app.imprimirDevQr()">🖨️ Imprimir</button>
+            </div>
+        </div>
+
+        <div class="drawer" id="drawer-dev-lote">
+            <div class="drawer-header">
+                <h2>QR de Lote</h2>
+                <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
+            </div>
+            <div class="drawer-body" style="text-align:center;">
+                <div id="dev-lote-prod" style="font-size:1.1rem; font-weight:700; margin-bottom:1rem;"></div>
+                <input type="hidden" id="dev-lote-ref">
+                <div id="dev-lote-parte-wrap" style="display:none; margin-bottom:0.8rem; text-align:left; max-width:340px; margin-left:auto; margin-right:auto;">
+                    <small style="color:var(--text-sec);">Parte do kit</small>
+                    <select id="dev-lote-parte" class="form-control"></select>
+                </div>
+                <div style="display:flex; gap:0.6rem; justify-content:center; flex-wrap:wrap; margin-bottom:1rem;">
+                    <div style="text-align:left;"><small style="color:var(--text-sec);">Peças por caixa (deste lote)</small><input type="number" id="dev-lote-ppc" class="form-control" min="1" placeholder="Ex: 60" style="width:160px;"></div>
+                    <div style="text-align:left;"><small style="color:var(--text-sec);">Número do lote</small><input type="text" id="dev-lote-num" class="form-control" placeholder="Ex: LOTE-A" style="width:160px;"></div>
+                </div>
+                <button class="btn btn-primary" onclick="app.gerarDevQrLote()" style="margin-bottom:1rem;">Gerar QR do lote</button>
+                <div id="dev-lote-card" style="display:none;">
+                    <div style="display:inline-block; background:#fff; color:#000; border-radius:10px; padding:1.2rem 1.5rem;">
+                        <div id="dev-lote-label" style="font-size:1rem; font-weight:700; margin-bottom:0.4rem; color:#000;"></div>
+                        <div id="dev-lote-canvas" style="display:inline-block;"></div>
+                    </div>
+                    <p style="color:var(--text-sec); font-size:0.85rem; margin-top:1rem;">Tire o print deste cartão branco e cole nas caixas deste lote.</p>
+                </div>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
+                <button class="btn btn-primary" onclick="app.imprimirDevLoteQr()">🖨️ Imprimir</button>
             </div>
         </div>
 
@@ -3511,6 +3554,29 @@ const app = (function() {
     }
 
     // ================= MONTAR CAIXA (parcial / mista) =================
+    let _mcMontadas = [];
+
+    function renderMontadasList() {
+        const wrap = document.getElementById('mc-montadas');
+        const list = document.getElementById('mc-montadas-list');
+        if (!wrap || !list) return;
+        if (_mcMontadas.length === 0) { wrap.style.display = 'none'; list.innerHTML = ''; return; }
+        wrap.style.display = 'block';
+        list.innerHTML = _mcMontadas.map((m, idx) => `<div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; padding:0.4rem 0; border-bottom:1px solid var(--border); font-size:0.85rem;"><span>📦 ${escapeWms(m.conteudo)}</span><button class="btn btn-secondary" style="padding:0.25rem 0.6rem; white-space:nowrap;" onclick="app.reverMontada(${idx})">🖨️ Ver / Imprimir</button></div>`).join('');
+    }
+
+    function reverMontada(idx) {
+        const m = _mcMontadas[idx];
+        if (!m) return;
+        const canvas = document.getElementById('mc-qr-canvas');
+        canvas.innerHTML = '';
+        if (typeof QRCode !== 'undefined') new QRCode(canvas, { text: m.qrData, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+        document.getElementById('mc-qr-conteudo').innerHTML = m.conteudoHtml;
+        document.getElementById('mc-qr-area').style.display = 'block';
+        const area = document.getElementById('mc-qr-area');
+        if (area && area.scrollIntoView) area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
     function renderMontarCaixaItens() {
         const cont = document.getElementById('mc-itens');
         if (!cont || !_sepPedidoAtual) return;
@@ -3537,6 +3603,8 @@ const app = (function() {
         document.getElementById('mc-numero').textContent = _sepPedidoAtual.numero;
         document.getElementById('mc-qr-area').style.display = 'none';
         document.getElementById('mc-qr-canvas').innerHTML = '';
+        _mcMontadas = [];
+        renderMontadasList();
         renderMontarCaixaItens();
         openDrawer('drawer-montar-caixa');
     }
@@ -3580,8 +3648,11 @@ const app = (function() {
             canvas.innerHTML = '';
             if (typeof QRCode !== 'undefined') new QRCode(canvas, { text: qrData, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
             else canvas.innerHTML = '<p style="color:var(--danger);">Biblioteca de QR não carregada.</p>';
-            document.getElementById('mc-qr-conteudo').innerHTML = selecionados.map(sl => `${escapeWms(sl.ref)}: <strong>${sl.qtd} pçs</strong>`).join(' · ');
+            const conteudoHtml = selecionados.map(sl => `${escapeWms(sl.ref)}: <strong>${sl.qtd} pçs</strong>`).join(' · ');
+            document.getElementById('mc-qr-conteudo').innerHTML = conteudoHtml;
             document.getElementById('mc-qr-area').style.display = 'block';
+            _mcMontadas.push({ qrData, conteudo: selecionados.map(sl => `${sl.ref}: ${sl.qtd}`).join(' · '), conteudoHtml });
+            renderMontadasList();
             avisar(todosOk ? 'Caixa montada! Pedido concluído — já está na aba 🚀 Expedição.' : 'Caixa montada e contabilizada! Imprima o QR e cole na caixa.');
             await carregarSepPedidos();
             _sepPedidoAtual = (state.sepPedidos || []).find(x => x.id === _sepPedidoAtual.id) || _sepPedidoAtual;
@@ -5223,6 +5294,20 @@ const app = (function() {
         } else { limpar(); }
     }
 
+    async function baixarPedidoOperacional(numero, separador) {
+        if (!numero) return;
+        if (!state.pedidos || state.pedidos.length === 0) { if (typeof carregarPedidos === 'function') await carregarPedidos(); }
+        const statusPendente = state.statusList[0] || 'Pendente';
+        const alvo = (state.pedidos || []).find(p => (p.num || '').trim() === String(numero).trim() && p.status === statusPendente);
+        if (!alvo) return;
+        const dtHoje = new Date().toISOString().split('T')[0];
+        try {
+            const { error } = await db.from('pedidos').update({ sep: separador || alvo.sep || '', dtsep: dtHoje, status: state.statusList[1] || 'Em Separação' }).eq('id', alvo.id).eq('admin_id', state.adminId);
+            if (error) { console.error('Baixa Operacional falhou:', error.message); return; }
+            if (typeof carregarPedidos === 'function') await carregarPedidos();
+        } catch (e) { console.error('Baixa Operacional erro:', e); }
+    }
+
     async function confirmarItemSep() {
         if (!_sepItemAtual || !_sepPedidoAtual) return;
         if (!_sepQrConfirmado) { avisar('Escaneie o QR do produto antes de confirmar.'); return; }
@@ -5241,6 +5326,7 @@ const app = (function() {
             const todosOk = itens.every(i => i.confirmado);
             const novoStatus = 'Em separação';
             await db.from('sep_pedidos').update({ status: novoStatus, separador }).eq('id', _sepPedidoAtual.id).eq('admin_id', state.adminId);
+            baixarPedidoOperacional(_sepPedidoAtual.numero, separador);
             pararScannerSep();
             closeAllDrawers();
             await carregarSepPedidos();
@@ -5294,7 +5380,7 @@ const app = (function() {
         if (lista.length === 0) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-sec); padding:1rem;">Nenhum produto na base. Importe do Excel acima.</td></tr>'; return; }
         exibir.forEach(p => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td><strong>${escapeWms(p.referencia)}</strong>${p.kitParte2Ref ? ' <span style="font-size:0.7rem; color:var(--accent); border:1px solid var(--accent); padding:0 0.3rem; border-radius:8px;">🧩 kit</span>' : ''}</td><td>${escapeWms(p.descricao)}</td><td><button class="btn-icon" title="QR Code" onclick="app.verDevQr('${p.id}')">🏷️</button> <button class="btn-icon" title="Editar" onclick="app.abrirModalDevProduto('${p.id}')">✏️</button> <button class="btn-icon" title="Excluir" style="color:var(--danger)" onclick="app.excluirDevProduto('${p.id}')">🗑️</button></td>`;
+            tr.innerHTML = `<td><strong>${escapeWms(p.referencia)}</strong>${p.kitParte2Ref ? ' <span style="font-size:0.7rem; color:var(--accent); border:1px solid var(--accent); padding:0 0.3rem; border-radius:8px;">🧩 kit</span>' : ''}</td><td>${escapeWms(p.descricao)}</td><td><button class="btn-icon" title="QR Code" onclick="app.verDevQr('${p.id}')">🏷️</button> <button class="btn-icon" title="QR de lote" onclick="app.abrirDevQrLote('${p.id}')">📦</button> <button class="btn-icon" title="Editar" onclick="app.abrirModalDevProduto('${p.id}')">✏️</button> <button class="btn-icon" title="Excluir" style="color:var(--danger)" onclick="app.excluirDevProduto('${p.id}')">🗑️</button></td>`;
             tbody.appendChild(tr);
         });
         if (lista.length > 300) {
@@ -7446,7 +7532,7 @@ const app = (function() {
                 const badgeNF = (status) => { if (status === 'Aguardando') return `<span class="badge" style="background: var(--danger-bg); color: var(--danger); font-size:11px;">⚠️ ${status}</span>`; if (status === 'Emitida') return `<span class="badge" style="background: var(--success-bg); color: var(--success); font-size:11px;">🧾 ${status}</span>`; if (status === 'Dispensada') return `<span class="badge" style="background: var(--bg-main); color: var(--text-sec); font-size:11px;">${status}</span>`; return `<span class="badge" style="background: var(--info-bg); color: var(--info); font-size:11px;">🔹 ${status}</span>`; };
                 let pedidosHtml = '<div style="margin-top:0.5rem; display: flex; flex-direction:column; gap:0.3rem;">'; pedidosLista.forEach(p => { pedidosHtml += `<div style="display: flex; justify-content:space-between; align-items:center; font-size:13px;"><strong>${escapeWms(p.num)}</strong> ${badgeNF(p.statusNF)}</div>`; }); pedidosHtml += '</div>';
                 const algumAguardando = pedidosLista.some(p => p.statusNF === 'Aguardando');
-                if (a.status === 'Finalizado') { card.style.borderLeftColor = 'var(--success)'; card.style.opacity = '0.8'; let durationHtml = ''; if (a.data === a.dataFinalizacao && a.hora && a.horaFinalizacao) { const start = new Date(`2000-01-01T${a.hora}:00`); const end = new Date(`2000-01-01T${a.horaFinalizacao}:00`); if(end >= start) { const diffMins = Math.round((end - start) / 60000); durationHtml = `<div style="margin-top: 0.5rem;"><span class="badge" style="background: var(--warning-bg); color: var(--warning); padding: 0.3rem 0.6rem;">⏳ Tempo total: ${diffMins} minutos</span></div>`; } } card.innerHTML = `<div><div class="flex justify-between items-center mb-1"><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${escapeWms(a.tipo)}</span></div><h3 style="font-size: 16px; text-decoration: line-through; color: var(--text-sec);">${escapeWms(a.nome)}</h3>${pedidosHtml}${customFieldsHtml}<div style="font-size: 11px; margin-top: 0.8rem; padding-top: 0.5rem; border-top: 1px solid var(--border);"><div style="color: var(--text-sec); margin-bottom: 0.2rem;">Entrada: ${a.data} às ${a.hora}</div><div style="color: var(--success); font-weight: 600;">Saída: ${a.dataFinalizacao} às ${a.horaFinalizacao}</div>${a.finalizadoPor ? `<div style="color: var(--text-sec); margin-top: 0.2rem;">Atendente: <strong style="color: var(--text-main);">${escapeWms(a.finalizadoPor)}</strong></div>` : ''}</div>${durationHtml}</div>`; countFin++; } else { const optsAtend = '<option value="">-- Selecione o atendente --</option>' + (state.responsaveisExp || []).map(r => `<option value="${escapeWms(r)}">${escapeWms(r)}</option>`).join(''); let btnActionHtml = `<div style="display:flex; flex-direction:column; gap:0.4rem;"><select id="sel-atend-${a.id}" class="form-control req-atend-edit" style="width:100%;">${optsAtend}</select><button class="btn btn-success req-atend-edit" style="width:100%; justify-content:center" onclick="app.finalizarAtendimento('${a.id}', this)">✔ Finalizar Despacho</button></div>`; if (algumAguardando) { card.style.borderLeftColor = 'var(--danger)'; card.style.backgroundColor = 'var(--danger-bg)'; } else { card.style.borderLeftColor = 'var(--success)'; card.style.backgroundColor = 'var(--success-bg)'; } card.innerHTML = `<div><div class="flex justify-between items-center mb-1"><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${a.data} - ${a.hora}</span></div><h3 style="font-size: 16px;">${escapeWms(a.nome)}</h3>${pedidosHtml}${customFieldsHtml}</div>${btnActionHtml}`; counts[a.tipo]++; }
+                if (a.status === 'Finalizado') { card.style.borderLeftColor = 'var(--success)'; card.style.opacity = '0.8'; let durationHtml = ''; if (a.data === a.dataFinalizacao && a.hora && a.horaFinalizacao) { const start = new Date(`2000-01-01T${a.hora}:00`); const end = new Date(`2000-01-01T${a.horaFinalizacao}:00`); if(end >= start) { const diffMins = Math.round((end - start) / 60000); durationHtml = `<div style="margin-top: 0.5rem;"><span class="badge" style="background: var(--warning-bg); color: var(--warning); padding: 0.3rem 0.6rem;">⏳ Tempo total: ${diffMins} minutos</span></div>`; } } card.innerHTML = `<div><div class="flex justify-between items-center mb-1"><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${escapeWms(a.tipo)}</span></div><h3 style="font-size: 16px; text-decoration: line-through; color: var(--text-sec);">${escapeWms(a.nome)}</h3>${pedidosHtml}${customFieldsHtml}<div style="font-size: 11px; margin-top: 0.8rem; padding-top: 0.5rem; border-top: 1px solid var(--border);"><div style="color: var(--text-sec); margin-bottom: 0.2rem;">Entrada: ${a.data} às ${a.hora}</div><div style="color: var(--success); font-weight: 600;">Saída: ${a.dataFinalizacao} às ${a.horaFinalizacao}</div>${a.finalizadoPor ? `<div style="color: var(--text-sec); margin-top: 0.2rem;">Atendente: <strong style="color: var(--text-main);">${escapeWms(a.finalizadoPor)}</strong></div>` : ''}</div>${durationHtml}</div>`; countFin++; } else { const optsAtend = '<option value="">-- Selecione o atendente --</option>' + (state.responsaveisExp || []).map(r => `<option value="${escapeWms(r)}">${escapeWms(r)}</option>`).join(''); const numsExp = pedidosLista.map(pp => (pp.num || '').trim()).filter(n => n && state.expedicaoNums && state.expedicaoNums.has(n)); const expBtns = numsExp.map(n => `<button class="btn btn-primary req-atend-edit" style="width:100%; justify-content:center" onclick="app.expedirDoAtendimento('${escapeWms(n)}')">🚀 Expedir ${escapeWms(n)}</button>`).join(''); let btnActionHtml = `<div style="display:flex; flex-direction:column; gap:0.4rem;">${expBtns}<select id="sel-atend-${a.id}" class="form-control req-atend-edit" style="width:100%;">${optsAtend}</select><button class="btn btn-success req-atend-edit" style="width:100%; justify-content:center" onclick="app.finalizarAtendimento('${a.id}', this)">✔ Finalizar Despacho</button></div>`; if (algumAguardando) { card.style.borderLeftColor = 'var(--danger)'; card.style.backgroundColor = 'var(--danger-bg)'; } else { card.style.borderLeftColor = 'var(--success)'; card.style.backgroundColor = 'var(--success-bg)'; } card.innerHTML = `<div><div class="flex justify-between items-center mb-1"><span class="badge" style="background:var(--bg-main); color:var(--text-sec)">${a.data} - ${a.hora}</span></div><h3 style="font-size: 16px;">${escapeWms(a.nome)}</h3>${pedidosHtml}${customFieldsHtml}</div>${btnActionHtml}`; counts[a.tipo]++; }
                 const btnX = document.createElement('button'); btnX.innerHTML = '✕'; btnX.title = 'Excluir atendimento'; btnX.style.cssText = 'position:absolute; top:8px; right:8px; z-index:6; background:transparent; border:none; color:var(--danger); font-size:20px; cursor:pointer; padding:4px 8px; line-height:1;';
 const btnEdit = document.createElement('button');
 btnEdit.innerHTML = '✏️';
@@ -8123,7 +8209,24 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
 
     async function carregarConfigs() { if (!state.adminId) return; const { data, error } = await db.from('configuracoes_sistema').select('chave, valor').eq('admin_id', state.adminId); if (error || !data) return; let colOrderSalvo = null; data.forEach(row => { switch(row.chave) { case 'statusList': if (Array.isArray(row.valor) && row.valor.length > 0) state.statusList = row.valor; break; case 'statusNFList': if (Array.isArray(row.valor) && row.valor.length > 0) state.statusNFList = row.valor; break; case 'customFields': if (Array.isArray(row.valor)) state.customFields = row.valor; break; case 'customFieldsAtend': if (Array.isArray(row.valor)) state.customFieldsAtend = row.valor; break; case 'colOrder': if (Array.isArray(row.valor) && row.valor.length > 0) colOrderSalvo = row.valor; break; case 'responsaveis': if (Array.isArray(row.valor)) state.responsaveis = row.valor; break; case 'responsaveisSep': if (Array.isArray(row.valor)) state.responsaveisSep = row.valor; break; case 'responsaveisConf': if (Array.isArray(row.valor)) state.responsaveisConf = row.valor; break; case 'responsaveisExp': if (Array.isArray(row.valor)) state.responsaveisExp = row.valor; break; case 'camposOperacionais': if (row.valor && typeof row.valor === 'object') state.camposOperacionais = {...state.camposOperacionais, ...row.valor}; break; case 'nomeExibicaoAdmin': if (typeof row.valor === 'string') state.nomeExibicaoAdmin = row.valor; break; case 'tempoLimiteNF': if (typeof row.valor === 'number' && row.valor > 0) state.tempoLimiteNF = row.valor; break; case 'camposFinanceiro': if (row.valor && typeof row.valor === 'object') state.camposFinanceiro = {...state.camposFinanceiro, ...row.valor}; break; case 'prefsAdmin': if (row.valor && typeof row.valor === 'object' && state.currentUser && state.currentUser.perfil === 'admin') { state.currentUser.accent = row.valor.cor || '#2F81F7'; state.currentUser.theme = row.valor.tema || 'dark'; state.currentUser.fundoTema = row.valor.fundoTema || 'nenhum'; state.currentUser.fundoIntensidade = row.valor.fundoIntensidade || 'media'; aplicarPreferenciasUsuario(); } break; } }); const base = ['data','num','status','vend','cli','sep','conf','exp']; const customIds = state.customFields.map(cf => cf.id); let novaOrdem = []; if (colOrderSalvo) { novaOrdem = colOrderSalvo.filter(id => base.includes(id) || customIds.includes(id)); } else { novaOrdem = [...base]; } base.forEach(id => { if (!novaOrdem.includes(id)) novaOrdem.push(id); }); customIds.forEach(id => { if (!novaOrdem.includes(id)) novaOrdem.push(id); }); state.colOrder = novaOrdem; renderStatusUI(); renderTipoAtendUI(); renderStatusNFUI(); renderTabsAtend(); renderResponsaveisConfig(); aplicarVisibilidadeCamposOperacionais(); const inpNomeAdmin = document.getElementById('config-nome-admin'); if (inpNomeAdmin) inpNomeAdmin.value = state.nomeExibicaoAdmin || ''; const inpTempo = document.getElementById('config-tempo-limite'); if (inpTempo) inpTempo.value = state.tempoLimiteNF || 10; renderCamposFinanceiroSelects(); }
     async function carregarPedidos() { if (!state.adminId) return; const { data, error } = await db.from('pedidos').select('*').eq('admin_id', state.adminId).order('created_at', { ascending: false }); if(error) { console.error('Erro', error.message); return; } if(data) { state.pedidos = data.map(p => ({ id: p.id, data: p.data || '', num: p.num || '', status: p.status || '', vend: p.vend || '', cli: p.cli || '', sep: p.sep || '', dtsep: p.dtsep || '', conf: p.conf || '', dtconf: p.dtconf || '', exp: p.exp || '', dtexp: p.dtexp || '', customData: p.custom_data || {} })); renderPedidos(); renderOperacional(); renderAlteracao(); } }
-    async function carregarAtendimentos() { if (!state.adminId) return; const { data, error } = await db.from('atendimentos').select('*').eq('admin_id', state.adminId).order('created_at', { ascending: false }); if(error) { console.error('Erro', error.message); return; } if(data) { state.atendimentos = data.map(a => ({ id: a.id, num: a.num || '', nome: a.nome || '', tipo: a.tipo || '', statusNF: a.status_nf || 'Aguardando', data: a.data || '', hora: a.hora || '', status: a.status || 'Aguardando', dataFinalizacao: a.data_finalizacao || '', horaFinalizacao: a.hora_finalizacao || '', finalizadoPor: a.finalizado_por || '', customData: a.custom_data || {} })); renderAtendimentos(); } }
+    async function carregarExpedicaoNums() {
+        if (!state.adminId) return;
+        try {
+            const { data, error } = await db.from('sep_pedidos').select('numero,status').eq('admin_id', state.adminId).eq('status', 'Concluído');
+            if (error) { console.error('Erro expedicaoNums:', error.message); return; }
+            state.expedicaoNums = new Set((data || []).map(x => (x.numero || '').trim()).filter(n => n));
+            if (typeof renderAtendimentos === 'function') renderAtendimentos();
+        } catch (e) { console.error(e); }
+    }
+
+    async function expedirDoAtendimento(numero) {
+        await carregarSepPedidos();
+        const ped = (state.sepPedidos || []).find(x => (x.numero || '').trim() === String(numero).trim() && x.status === 'Concluído');
+        if (!ped) { avisar('Este pedido não está mais na Expedição do Estoque.'); return; }
+        abrirExpedicao(ped.id);
+    }
+
+    async function carregarAtendimentos() { if (!state.adminId) return; const { data, error } = await db.from('atendimentos').select('*').eq('admin_id', state.adminId).order('created_at', { ascending: false }); if(error) { console.error('Erro', error.message); return; } if(data) { state.atendimentos = data.map(a => ({ id: a.id, num: a.num || '', nome: a.nome || '', tipo: a.tipo || '', statusNF: a.status_nf || 'Aguardando', data: a.data || '', hora: a.hora || '', status: a.status || 'Aguardando', dataFinalizacao: a.data_finalizacao || '', horaFinalizacao: a.hora_finalizacao || '', finalizadoPor: a.finalizado_por || '', customData: a.custom_data || {} })); renderAtendimentos(); carregarExpedicaoNums(); } }
     async function carregarMotoristas() { if (!state.adminId) return; const { data, error } = await db.from('motoristas').select('*').eq('admin_id', state.adminId).order('nome', { ascending: true }); if(error) { console.error('Erro', error.message); return; } if(data) { state.motoristas = data.map(m => ({ id: m.id, cliente: m.cliente || '', nome: m.nome || '', placa: m.placa || '', documento: m.documento || '' })); renderMotoristas(); } }
 
     // ================= WMS: PRODUTOS =================
@@ -8291,6 +8394,16 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         container.innerHTML = '';
         if (typeof QRCode === 'undefined') { avisar('Biblioteca de QR não carregada. Recarregue a página.'); return; }
         new QRCode(container, { text: 'BW-PROD:' + p.referencia, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
+        const q2wrap = document.getElementById('dev-qr2-wrap');
+        const q2canvas = document.getElementById('dev-qr2-canvas');
+        q2canvas.innerHTML = '';
+        if (p.kitParte2Ref) {
+            document.getElementById('dev-qr2-ref').textContent = p.kitParte2Ref;
+            new QRCode(q2canvas, { text: 'BW-PROD:' + p.kitParte2Ref, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
+            q2wrap.style.display = 'block';
+        } else {
+            q2wrap.style.display = 'none';
+        }
         openDrawer('drawer-dev-qr');
     }
 
@@ -8298,6 +8411,56 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         const ref = document.getElementById('dev-qr-ref').textContent;
         const desc = document.getElementById('dev-qr-desc').textContent;
         imprimirQrImagem(_qrSrc('dev-qr-canvas'), ref, desc);
+    }
+
+    function imprimirDevQr2() {
+        const ref = document.getElementById('dev-qr2-ref').textContent;
+        if (!ref) { avisar('Sem QR da Parte 2.'); return; }
+        imprimirQrImagem(_qrSrc('dev-qr2-canvas'), ref, 'Parte 2 do kit');
+    }
+
+    function abrirDevQrLote(id) {
+        const p = (state.devProdutos || []).find(x => x.id === id);
+        if (!p) { avisar('Produto não encontrado.'); return; }
+        document.getElementById('dev-lote-ref').value = p.referencia;
+        document.getElementById('dev-lote-prod').textContent = `${p.referencia} — ${p.descricao || ''}`;
+        const parteWrap = document.getElementById('dev-lote-parte-wrap');
+        const parteSel = document.getElementById('dev-lote-parte');
+        if (p.kitParte2Ref) {
+            parteSel.innerHTML = `<option value="${escapeWms(p.referencia)}">Parte 1 — ${escapeWms(p.referencia)}</option><option value="${escapeWms(p.kitParte2Ref)}">Parte 2 — ${escapeWms(p.kitParte2Ref)}</option>`;
+            parteWrap.style.display = 'block';
+        } else {
+            parteSel.innerHTML = '';
+            parteWrap.style.display = 'none';
+        }
+        document.getElementById('dev-lote-ppc').value = '';
+        document.getElementById('dev-lote-num').value = '';
+        document.getElementById('dev-lote-card').style.display = 'none';
+        document.getElementById('dev-lote-canvas').innerHTML = '';
+        openDrawer('drawer-dev-lote');
+    }
+
+    function gerarDevQrLote() {
+        const parteWrap = document.getElementById('dev-lote-parte-wrap');
+        const ref = (parteWrap && parteWrap.style.display !== 'none') ? document.getElementById('dev-lote-parte').value : document.getElementById('dev-lote-ref').value;
+        const ppc = parseInt(document.getElementById('dev-lote-ppc').value) || 0;
+        const lote = document.getElementById('dev-lote-num').value.trim();
+        if (!ref) { avisar('Produto inválido.'); return; }
+        if (ppc < 1) { avisar('Informe as peças por caixa do lote.'); return; }
+        if (!lote) { avisar('Informe o número do lote.'); return; }
+        if (lote.includes(':')) { avisar('O número do lote não pode conter ":".'); return; }
+        const cont = document.getElementById('dev-lote-canvas');
+        cont.innerHTML = '';
+        if (typeof QRCode === 'undefined') { avisar('Biblioteca de QR não carregada.'); return; }
+        new QRCode(cont, { text: `BW-LOTE:${ref}:${ppc}:${lote}`, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
+        document.getElementById('dev-lote-label').textContent = `${ref} · Lote ${lote} · ${ppc} pçs/cx`;
+        document.getElementById('dev-lote-card').style.display = 'block';
+    }
+
+    function imprimirDevLoteQr() {
+        const label = document.getElementById('dev-lote-label').textContent;
+        if (!label) { avisar('Gere o QR do lote antes de imprimir.'); return; }
+        imprimirQrImagem(_qrSrc('dev-lote-canvas'), label, 'QR de Lote');
     }
 
     function imprimirWmsQr() {
@@ -8886,10 +9049,10 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         adicionarCampoPedidoAtend, removerCampoPedidoAtend, getPedidosListaAtend,
         adicionarResponsavel, excluirResponsavel, adicionarAtendenteExp, excluirAtendenteExp, renderAtendentesExp,
         switchWmsSubtab, carregarWmsProdutos, renderWmsProdutos, abrirModalWmsProduto, salvarWmsProduto, excluirWmsProduto,
-        switchDevSubtab, carregarDevProdutos, renderDevBase, importarDevProdutos, abrirModalDevProduto, salvarDevProduto, excluirDevProduto, verDevQr, imprimirDevQr,
+        switchDevSubtab, carregarDevProdutos, renderDevBase, importarDevProdutos, abrirModalDevProduto, salvarDevProduto, excluirDevProduto, verDevQr, imprimirDevQr, imprimirDevQr2, abrirDevQrLote, gerarDevQrLote, imprimirDevLoteQr,
         carregarSepPedidos, renderSepPedidos, abrirModalSepPedido, filtrarProdutosSepPedido, selecionarProdutoSep, addItemSepTemp, removerItemSepTemp, salvarSepPedido, excluirSepPedido,
         renderExpedicao, verQrPedido, abrirExpedicao, confirmarExpedicao, pararScannerExp,
-        abrirMontarCaixa, gerarCaixaMontada, imprimirCaixaMontada, imprimirPedidoQr,
+        abrirMontarCaixa, gerarCaixaMontada, imprimirCaixaMontada, imprimirPedidoQr, reverMontada,
         finalizarSeparacao, renderConferencia, abrirConferencia, renderWmsFinalizados,
         abrirSeparacaoSep, renderItensSeparacaoSep, abrirConfirmarItemSep, iniciarScannerSep, confirmarItemSep, fecharSepConfirmar, fecharSepSeparacao,
         switchImpSubtab, carregarImpAnalise, importarSaldo, importarSaida, importarSaidaAnt, importarArquivoImp, limparImpAnalise, renderImpAnalise, renderImpDados, exportarImpExcel, renderImpComparativo,
@@ -8918,7 +9081,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         toggleFieldAtendManager, toggleFieldAtendOptions, adicionarCampoAtend, editarCampoAtend, excluirCampoAtend, moverCampoAtend, 
 
         handleDragStart, handleDragOver, handleDrop, handleTabDragStart, handleTabDragOver, handleTabDrop, 
-        salvarAtendimento, editarAtendimento, finalizarAtendimento, excluirAtendimento, liberarNF, liberarNFEmail, abrirModalLiberarNF, fecharModalLiberarNF, confirmarLiberarNF, registrarNotaFiscal, renderMotoristas, salvarMotorista, editarMotorista, excluirMotorista,
+        salvarAtendimento, editarAtendimento, finalizarAtendimento, expedirDoAtendimento, excluirAtendimento, liberarNF, liberarNFEmail, abrirModalLiberarNF, fecharModalLiberarNF, confirmarLiberarNF, registrarNotaFiscal, renderMotoristas, salvarMotorista, editarMotorista, excluirMotorista,
         adicionarFilialDestino, analisarReposicao, filtrarReposicao, exportarReposicao, filtrarPorFilial,
         handlePerfilChange, salvarUsuario, editarUsuario, excluirUsuario, alternarCargoUsuario
     };
