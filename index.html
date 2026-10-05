@@ -1069,6 +1069,7 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <button class="wms-subtab" data-subtab="wms-expedicao" onclick="app.switchWmsSubtab('wms-expedicao')">🚀 Expedição</button>
                 <button class="wms-subtab" data-subtab="wms-finalizados" onclick="app.switchWmsSubtab('wms-finalizados')">🏁 Finalizados</button>
                 <button class="wms-subtab" data-subtab="wms-concluidas" onclick="app.switchWmsSubtab('wms-concluidas')">✅ Concluídas</button>
+                <button class="wms-subtab" data-subtab="wms-consulta" onclick="app.switchWmsSubtab('wms-consulta')">🔎 Consultar</button>
             </div>
 
             <div id="wms-produtos" class="wms-subtab-content">
@@ -1186,7 +1187,27 @@ body.monitor-mode .queue-card button { display: none !important; }
                 </div>
                 <div id="wms-conc-lista" style="display:flex; flex-direction:column; gap:0.6rem;"></div>
             </div>
+            <div id="wms-consulta" class="wms-subtab-content" style="display:none;">
+                <div style="margin-bottom:1rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+                    <input type="text" id="wms-consulta-busca" class="form-control" placeholder="🔍 Número do pedido" style="max-width:280px;" oninput="app.renderConsultaPedido()">
+                    <span id="wms-consulta-count" style="color:var(--text-sec); font-size:0.85rem;"></span>
+                </div>
+                <div id="wms-consulta-lista" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
+            </div>
         </section>
+
+        <div class="drawer dev-fullscreen" id="drawer-consulta-ped">
+            <div class="drawer-header">
+                <h2 id="consulta-ped-titulo">Pedido</h2>
+                <button class="btn-icon" onclick="app.closeAllDrawers()" title="Fechar">✕</button>
+            </div>
+            <div class="drawer-body">
+                <div id="consulta-ped-conteudo"></div>
+            </div>
+            <div class="drawer-footer">
+                <button class="btn btn-secondary" onclick="app.closeAllDrawers()">Fechar</button>
+            </div>
+        </div>
 
         <div class="drawer dev-fullscreen" id="drawer-sep-expedicao">
             <div class="drawer-header">
@@ -3357,6 +3378,14 @@ const app = (function() {
         return ppc > 0 ? ppc : 1;
     }
 
+    function _descProdByRef(ref) {
+        if (!ref) return '';
+        const p = (state.devProdutos || []).find(x => x.referencia === ref);
+        if (p) return p.descricao || '';
+        const w = (state.wmsProdutos || []).find(x => (x.sku || '') === ref);
+        return w ? (w.descricao || '') : '';
+    }
+
     function renderExpedicao() {
         const cont = document.getElementById('sep-exp-lista');
         if (!cont) return;
@@ -3478,7 +3507,7 @@ const app = (function() {
         const alerta = (msg) => { addLog(`⚠️ ${msg}`, 'rgba(245,158,11,0.18)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); };
         if (lido.startsWith('BW-PROD:')) {
             const ref = lido.substring(8);
-            if (!(ref in _expEsperado)) { erro(`Produto <strong>${escapeWms(ref)}</strong> NÃO é deste pedido.`); return; }
+            if (!(ref in _expEsperado)) { { const _d = _descProdByRef(ref); erro(`Este QR é do produto <strong>${escapeWms(ref)}${_d ? ' — ' + escapeWms(_d) : ''}</strong> — NÃO é deste pedido.`); } return; }
             const ppc = _expPpc[ref] || 1;
             if ((_expScan[ref] || 0) + ppc > _expEsperado[ref]) { alerta(`Caixa cheia de <strong>${escapeWms(ref)}</strong> excede — faltam ${_expEsperado[ref] - (_expScan[ref] || 0)} pçs. Use a caixa parcial.`); renderExpTally(); return; }
             _expScan[ref] = (_expScan[ref] || 0) + ppc;
@@ -3496,7 +3525,7 @@ const app = (function() {
             if (pares.length === 0) { erro('Caixa montada inválida.'); return; }
             for (const par of pares) {
                 const ref = par[0], q = parseInt(par[1]) || 0;
-                if (!(ref in _expEsperado)) { erro(`Caixa contém <strong>${escapeWms(ref)}</strong>, que NÃO é deste pedido.`); return; }
+                if (!(ref in _expEsperado)) { { const _d = _descProdByRef(ref); erro(`Caixa contém <strong>${escapeWms(ref)}${_d ? ' — ' + escapeWms(_d) : ''}</strong> — esse QR é de outro produto, NÃO é deste pedido.`); } return; }
                 if ((_expScan[ref] || 0) + q > _expEsperado[ref]) { alerta(`Caixa excede em <strong>${escapeWms(ref)}</strong> — faltam ${_expEsperado[ref] - (_expScan[ref] || 0)} pçs.`); return; }
             }
             const descr = [];
@@ -3840,6 +3869,49 @@ const app = (function() {
         });
     }
 
+    function renderConsultaPedido() {
+        const cont = document.getElementById('wms-consulta-lista');
+        if (!cont) return;
+        const busca = (document.getElementById('wms-consulta-busca') ? document.getElementById('wms-consulta-busca').value : '').trim().toLowerCase();
+        let lista = state.sepPedidos || [];
+        if (busca) lista = lista.filter(x => (x.numero || '').toLowerCase().includes(busca));
+        const countEl = document.getElementById('wms-consulta-count');
+        if (countEl) countEl.textContent = `${lista.length} pedido(s)`;
+        if (lista.length === 0) { cont.innerHTML = '<p style="color:var(--text-sec); padding:0.8rem;">Nenhum pedido encontrado.</p>'; return; }
+        cont.innerHTML = lista.slice(0, 100).map(x => `<div style="border:1px solid var(--border); border-radius:8px; padding:0.7rem 1rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:0.5rem;" onclick="app.abrirConsultaPedido('${x.id}')"><div><strong>${escapeWms(x.numero)}</strong> <span style="font-size:0.78rem; color:var(--text-sec);">${escapeWms(x.status || '')}</span></div><button class="btn btn-secondary" style="padding:0.3rem 0.7rem;">🔎 Ver</button></div>`).join('');
+    }
+
+    function abrirConsultaPedido(pedidoId) {
+        const p = (state.sepPedidos || []).find(x => x.id === pedidoId);
+        if (!p) { avisar('Pedido não encontrado.'); return; }
+        const itens = (state.sepItens || []).filter(i => i.pedidoId === pedidoId);
+        document.getElementById('consulta-ped-titulo').textContent = `Pedido ${p.numero}`;
+        const cont = document.getElementById('consulta-ped-conteudo');
+        cont.innerHTML = '';
+        const pedBox = document.createElement('div');
+        pedBox.style.cssText = 'text-align:center; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px dashed var(--border);';
+        pedBox.innerHTML = `<div style="font-size:0.85rem; color:var(--text-sec); margin-bottom:0.4rem;">QR do pedido · <strong>${escapeWms(p.status || '')}</strong></div><div style="display:inline-block; background:#fff; padding:0.8rem; border-radius:8px;"><div id="consulta-ped-qr" style="display:inline-block;"></div></div>`;
+        cont.appendChild(pedBox);
+        if (typeof QRCode !== 'undefined') new QRCode(document.getElementById('consulta-ped-qr'), { text: 'BW-PED:' + p.id, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.M });
+        if (itens.length === 0) { const e = document.createElement('p'); e.style.color = 'var(--text-sec)'; e.textContent = 'Este pedido não tem itens.'; cont.appendChild(e); }
+        itens.forEach((it, idx) => {
+            const isKit = !!it.kitParte2Ref;
+            const box = document.createElement('div');
+            box.style.cssText = 'border:1px solid var(--border); border-radius:8px; padding:0.8rem 1rem; margin-bottom:0.8rem;';
+            let html = `<div style="font-weight:700;">${escapeWms(it.referencia)}${isKit ? ' <span style="font-size:0.7rem; color:var(--accent);">🧩 kit</span>' : ''}</div><div style="color:var(--text-sec); font-size:0.85rem; margin:0.2rem 0;">${escapeWms(it.descricao || '')}</div><div style="font-size:0.9rem; margin-bottom:0.6rem;">Quantidade: <strong>${it.qtdSolicitada} pçs</strong></div>`;
+            html += `<div style="display:flex; gap:1rem; flex-wrap:wrap;"><div style="text-align:center;"><div style="font-size:0.75rem; color:var(--text-sec); margin-bottom:0.3rem;">${isKit ? 'Parte 1 — ' : ''}${escapeWms(it.referencia)}</div><div style="display:inline-block; background:#fff; padding:0.6rem; border-radius:6px;"><div id="consulta-qr-${idx}-a" style="display:inline-block;"></div></div></div>`;
+            if (isKit) html += `<div style="text-align:center;"><div style="font-size:0.75rem; color:var(--text-sec); margin-bottom:0.3rem;">Parte 2 — ${escapeWms(it.kitParte2Ref)}</div><div style="display:inline-block; background:#fff; padding:0.6rem; border-radius:6px;"><div id="consulta-qr-${idx}-b" style="display:inline-block;"></div></div></div>`;
+            html += `</div>`;
+            box.innerHTML = html;
+            cont.appendChild(box);
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(document.getElementById(`consulta-qr-${idx}-a`), { text: 'BW-PROD:' + it.referencia, width: 120, height: 120, correctLevel: QRCode.CorrectLevel.H });
+                if (isKit) new QRCode(document.getElementById(`consulta-qr-${idx}-b`), { text: 'BW-PROD:' + it.kitParte2Ref, width: 120, height: 120, correctLevel: QRCode.CorrectLevel.H });
+            }
+        });
+        openDrawer('drawer-consulta-ped');
+    }
+
     function switchWmsSubtab(subtab) {
         document.querySelectorAll('.wms-subtab-content').forEach(c => c.style.display = 'none');
         const alvo = document.getElementById(subtab);
@@ -3855,6 +3927,7 @@ const app = (function() {
         if (subtab === 'wms-conferencia') { if (typeof carregarSepPedidos === 'function') { carregarSepPedidos().then(() => { if (typeof renderConferencia === 'function') renderConferencia(); }); } else if (typeof renderConferencia === 'function') { renderConferencia(); } }
         if (subtab === 'wms-expedicao') { if (typeof carregarSepPedidos === 'function') { carregarSepPedidos().then(() => { if (typeof renderExpedicao === 'function') renderExpedicao(); }); } else if (typeof renderExpedicao === 'function') { renderExpedicao(); } }
         if (subtab === 'wms-finalizados') { if (typeof carregarSepPedidos === 'function') { carregarSepPedidos().then(() => { if (typeof renderWmsFinalizados === 'function') renderWmsFinalizados(); }); } else if (typeof renderWmsFinalizados === 'function') { renderWmsFinalizados(); } }
+        if (subtab === 'wms-consulta') { if (typeof carregarSepPedidos === 'function') { carregarSepPedidos().then(() => { if (typeof renderConsultaPedido === 'function') renderConsultaPedido(); }); } else if (typeof renderConsultaPedido === 'function') { renderConsultaPedido(); } }
     }
 
     // --- DEVOLUÇÃO: troca de sub-aba ---
@@ -4287,10 +4360,12 @@ const app = (function() {
 
     function abrirModalCliente(id = null) {
         document.getElementById('cli-id').value = id || '';
+        const travar = !!id;
+        ['cli-cnpj','cli-whatsapp','cli-gmail'].forEach(i => { const el = document.getElementById(i); if (el) el.disabled = travar; });
         if (id) {
             const c = state.fiscalClientes.find(x => x.id === id);
             if (!c) return;
-            document.getElementById('cliente-modal-titulo').textContent = 'Editar Cliente';
+            document.getElementById('cliente-modal-titulo').textContent = 'Editar Cliente (só Razão Social)';
             document.getElementById('cli-razao').value = c.razaoSocial;
             document.getElementById('cli-cnpj').value = c.cnpj;
             document.getElementById('cli-whatsapp').value = c.whatsapp;
@@ -5316,7 +5391,7 @@ const app = (function() {
         let parte, ppc;
         if (refLido === _sepItemAtual.referencia) { parte = 'A'; ppc = _sepPpcAtual; }
         else if (_sepIsKit && refLido === _sepRefB) { parte = 'B'; ppc = _sepPpcB; }
-        else { addLog(`❌ Caixa de <strong>${escapeWms(refLido || '?')}</strong> não é deste item.`, 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
+        else { const _d = _descProdByRef(refLido); addLog(`❌ Este QR é do produto <strong>${escapeWms(refLido || '?')}${_d ? ' — ' + escapeWms(_d) : ''}</strong> — não é deste item.`, 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
         if (isProd) qtd = ppc;
         if (qtd <= 0) { addLog('❌ QR de caixa inválido.', 'rgba(239,68,68,0.15)'); if (typeof tocarAlerta === 'function') tocarAlerta(3); return; }
         const ini = parte === 'A' ? _sepQtdIni : _sepQtdIniB;
@@ -5802,9 +5877,37 @@ const app = (function() {
         const c = (state.devCheckins || []).find(x => x.id === checkinId);
         if (!c) return;
         document.getElementById('sac-visao-titulo').textContent = `${metodo} — ${c.cliente || 's/ cliente'}`;
-        document.getElementById('sac-visao-info').innerHTML = `<strong>Protocolo:</strong> ${escapeWms(c.protocolo || '—')} · <strong>Recebido por:</strong> ${escapeWms(c.recebidoPor || '—')}`;
+        document.getElementById('sac-visao-info').innerHTML = `<div id="sac-cli-view" style="margin-bottom:0.3rem;"><strong>Cliente:</strong> ${escapeWms(c.cliente || '—')} <button class="btn-icon" title="Editar nome do cliente" onclick="app.editarClienteSac()">✏️</button></div><strong>Protocolo:</strong> ${escapeWms(c.protocolo || '—')} · <strong>Recebido por:</strong> ${escapeWms(c.recebidoPor || '—')}`;
         renderSacVisaoItens();
         openDrawer('drawer-sac-visao');
+    }
+
+    function editarClienteSac() {
+        if (!_sacVisaoAtual) return;
+        const c = (state.devCheckins || []).find(x => x.id === _sacVisaoAtual.checkinId);
+        if (!c) return;
+        const view = document.getElementById('sac-cli-view');
+        if (!view) return;
+        view.innerHTML = `<div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;"><strong>Cliente:</strong> <input type="text" id="sac-cli-input" class="form-control" style="max-width:240px;" value="${escapeWms(c.cliente || '')}"><button class="btn btn-primary" style="padding:0.3rem 0.7rem;" onclick="app.salvarClienteSac()">✔ Salvar</button><button class="btn btn-secondary" style="padding:0.3rem 0.7rem;" onclick="app.recarregarSacVisao()">✕</button></div>`;
+        const inp = document.getElementById('sac-cli-input'); if (inp) inp.focus();
+    }
+
+    async function salvarClienteSac() {
+        if (!_sacVisaoAtual) return;
+        const inp = document.getElementById('sac-cli-input');
+        const novo = inp ? inp.value.trim() : '';
+        if (!novo) { avisar('Informe o nome do cliente.'); return; }
+        const { error } = await db.from('dev_checkins').update({ cliente: novo }).eq('id', _sacVisaoAtual.checkinId).eq('admin_id', state.adminId);
+        if (error) { avisar('Erro ao salvar cliente: ' + error.message); return; }
+        const c = (state.devCheckins || []).find(x => x.id === _sacVisaoAtual.checkinId);
+        if (c) c.cliente = novo;
+        avisar('Nome do cliente atualizado.');
+        recarregarSacVisao();
+        if (typeof renderDevSaque === 'function') renderDevSaque();
+    }
+
+    function recarregarSacVisao() {
+        if (_sacVisaoAtual) abrirSacVisao(_sacVisaoAtual.metodo, _sacVisaoAtual.checkinId);
     }
 
     function renderSacVisaoItens() {
@@ -6204,7 +6307,7 @@ const app = (function() {
         if (!c) return;
         _saqCheckinAtual = c;
         document.getElementById('dev-saq-protocolo').textContent = c.protocolo || '';
-        document.getElementById('dev-saq-info').innerHTML = `<strong>Cliente:</strong> ${escapeWms(c.cliente) || '—'} · <strong>Recebido por:</strong> ${escapeWms(c.recebidoPor)}${c.conferente ? ' · <strong>Devolução:</strong> ' + escapeWms(c.conferente) : ''} · <strong>${escapeWms(c.expedicao) || '—'}</strong>`;
+        document.getElementById('dev-saq-info').innerHTML = `<span id="saq-cli-view"><strong>Cliente:</strong> ${escapeWms(c.cliente) || '—'} <button class="btn-icon" title="Editar nome do cliente" onclick="app.editarClienteSaque()">✏️</button></span> · <strong>Recebido por:</strong> ${escapeWms(c.recebidoPor)}${c.conferente ? ' · <strong>Devolução:</strong> ' + escapeWms(c.conferente) : ''} · <strong>${escapeWms(c.expedicao) || '—'}</strong>`;
         const vendCont = document.getElementById('dev-saq-vendedor-cont');
         if (vendCont) {
             const opcoesVend = (state.fiscalVendedores || []).map(v => `<option value="${escapeWms(v.nome)}">`).join('');
@@ -6213,6 +6316,29 @@ const app = (function() {
         renderItensSaque();
         atualizarBotaoPdfSac();
         openDrawer('drawer-dev-saque');
+    }
+
+    function editarClienteSaque() {
+        if (!_saqCheckinAtual) return;
+        const view = document.getElementById('saq-cli-view');
+        if (!view) return;
+        view.innerHTML = `<strong>Cliente:</strong> <input type="text" id="saq-cli-input" class="form-control" style="max-width:240px; display:inline-block;" value="${escapeWms(_saqCheckinAtual.cliente || '')}"> <button class="btn btn-primary" style="padding:0.2rem 0.6rem;" onclick="app.salvarClienteSaque()">✔</button> <button class="btn btn-secondary" style="padding:0.2rem 0.6rem;" onclick="app.abrirSaque('${_saqCheckinAtual.id}')">✕</button>`;
+        const inp = document.getElementById('saq-cli-input'); if (inp) inp.focus();
+    }
+
+    async function salvarClienteSaque() {
+        if (!_saqCheckinAtual) return;
+        const inp = document.getElementById('saq-cli-input');
+        const novo = inp ? inp.value.trim() : '';
+        if (!novo) { avisar('Informe o nome do cliente.'); return; }
+        const { error } = await db.from('dev_checkins').update({ cliente: novo }).eq('id', _saqCheckinAtual.id).eq('admin_id', state.adminId);
+        if (error) { avisar('Erro ao salvar cliente: ' + error.message); return; }
+        _saqCheckinAtual.cliente = novo;
+        const c = (state.devCheckins || []).find(x => x.id === _saqCheckinAtual.id);
+        if (c) c.cliente = novo;
+        avisar('Nome do cliente atualizado.');
+        abrirSaque(_saqCheckinAtual.id);
+        if (typeof renderDevSaque === 'function') renderDevSaque();
     }
 
     function atualizarBotaoPdfSac() {
@@ -9106,7 +9232,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         
         adicionarCampoPedidoAtend, removerCampoPedidoAtend, getPedidosListaAtend,
         adicionarResponsavel, excluirResponsavel, adicionarAtendenteExp, excluirAtendenteExp, renderAtendentesExp,
-        switchWmsSubtab, carregarWmsProdutos, renderWmsProdutos, abrirModalWmsProduto, salvarWmsProduto, excluirWmsProduto,
+        switchWmsSubtab, renderConsultaPedido, abrirConsultaPedido, carregarWmsProdutos, renderWmsProdutos, abrirModalWmsProduto, salvarWmsProduto, excluirWmsProduto,
         switchDevSubtab, carregarDevProdutos, renderDevBase, importarDevProdutos, abrirModalDevProduto, salvarDevProduto, excluirDevProduto, verDevQr, imprimirDevQr, imprimirDevQr2, abrirDevQrLote, gerarDevQrLote, imprimirDevLoteQr,
         carregarSepPedidos, renderSepPedidos, abrirModalSepPedido, filtrarProdutosSepPedido, selecionarProdutoSep, addItemSepTemp, removerItemSepTemp, salvarSepPedido, excluirSepPedido,
         renderExpedicao, verQrPedido, abrirExpedicao, confirmarExpedicao, pararScannerExp,
@@ -9119,7 +9245,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         carregarDevListas, renderDevListas, addDevLista, excluirDevLista,
         carregarDevCheckins, renderDevCheckin, gerarProtocoloCheckin, salvarCheckin, editarItemDevolucao,
         renderDevRegistro, abrirRelatorioDevolucao, onDevCodigoInput, onDevProdutoInput, addItemDevolucao, renderItensRelatorio, removerItemDevolucao, excluirDevolucao,
-                salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, switchAnaliseSacSubtab, renderAnaliseSacDashboard, gerarRelatorioSac, exportarRelatorioSacExcel, exportarRelatorioSacPdf, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac, finalizarSacCard, renderDevFinalizados, abrirFinalizado, reabrirDevolucao,
+                salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, editarClienteSaque, salvarClienteSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, switchAnaliseSacSubtab, renderAnaliseSacDashboard, gerarRelatorioSac, exportarRelatorioSacExcel, exportarRelatorioSacPdf, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, editarClienteSac, salvarClienteSac, recarregarSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac, finalizarSacCard, renderDevFinalizados, abrirFinalizado, reabrirDevolucao,
         finalizarDevolucaoSaque, renderDevDescarte, exportarDescartePDF, exportarDescarteExcel,
         carregarWmsEnderecos, renderWmsEnderecos, abrirModalWmsEndereco, salvarWmsEndereco, excluirWmsEndereco, verWmsQr, imprimirWmsQr,
         carregarWmsSaldos, renderWmsSaldos, renderWmsTotais, abrirModalWmsSaldo, salvarWmsSaldo, excluirWmsSaldo,
