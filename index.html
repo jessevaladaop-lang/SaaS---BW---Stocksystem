@@ -121,6 +121,12 @@ body[data-perm-sac-ver="false"] #nav-sac { display: none !important; }
 body[data-perm-sac-edit="false"] .req-sac-edit { display: none !important; pointer-events: none; }
 body[data-perm-analise-sac-ver="false"] #nav-analise-sac { display: none !important; }
 body[data-perm-analise-sac-edit="false"] .req-analise-sac-edit { display: none !important; pointer-events: none; }
+body[data-perm-analise-mensal-ver="false"] #nav-analise-mensal { display: none !important; }
+body[data-perm-analise-mensal-edit="false"] .req-analise-mensal-edit { display: none !important; pointer-events: none; }
+.am-subtab { background: none; border: none; color: var(--text-sec); padding: 0.6rem 1rem; cursor: pointer; font-size: 0.95rem; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+.am-subtab:hover { color: var(--text-main); }
+.am-subtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+#am-erros-tbody td, #am-registrar table th { padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; }
 
 /* Barra de abas internas */
 #tabbar { display:flex; align-items:center; gap:2px; background:var(--bg-main); border-bottom:1px solid var(--border); padding:0.3rem 0.5rem 0 0.5rem; overflow-x:auto; min-height:38px; }
@@ -497,6 +503,10 @@ body.monitor-mode .queue-card button { display: none !important; }
             <li class="nav-item" id="nav-analise-sac" data-target="analise-sac-module">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
                 Análise do SAC
+            </li>
+            <li class="nav-item" id="nav-analise-mensal" data-target="analise-mensal-module">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                Análise Mensal
             </li>
             <li class="nav-item" id="nav-registro" data-target="registro-module">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
@@ -2141,6 +2151,91 @@ body.monitor-mode .queue-card button { display: none !important; }
             </div>
         </section>
 
+        <section id="analise-mensal-module" class="module">
+            <div class="top-bar"><h1>📊 Análise Mensal — Acurácia</h1></div>
+            <div class="tabs" style="display:flex; gap:0.5rem; border-bottom:1px solid var(--border); margin-bottom:1rem; flex-wrap:wrap;">
+                <button class="am-subtab active" data-amtab="am-registrar" onclick="app.switchAnaliseMensalSubtab('am-registrar')">📝 Registrar erro</button>
+                <button class="am-subtab" data-amtab="am-dashboard" onclick="app.switchAnaliseMensalSubtab('am-dashboard')">📊 Dashboard</button>
+                <button class="am-subtab" data-amtab="am-evolucao" onclick="app.switchAnaliseMensalSubtab('am-evolucao')">📈 Evolução</button>
+                <button class="am-subtab" data-amtab="am-tv" onclick="app.switchAnaliseMensalSubtab('am-tv')">📺 Modo TV</button>
+            </div>
+            <div id="am-registrar" class="am-subtab-content">
+                <div class="req-analise-mensal-edit" style="border:1px solid var(--border); border-radius:8px; padding:1rem; margin-bottom:1.2rem;">
+                    <h3 style="margin:0 0 0.8rem 0; font-size:1rem;">Registrar erro</h3>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:0.8rem;">
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Data</label><input type="date" id="am-data" class="form-control"></div>
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Cliente</label><input type="text" id="am-cliente" class="form-control" placeholder="Nome do cliente"></div>
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Nº do pedido</label><input type="text" id="am-numero" class="form-control" placeholder="Nº"></div>
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Setor</label><select id="am-setor" class="form-control"><option value="Separação">Separação</option><option value="Conferência">Conferência</option><option value="Expedição">Expedição</option></select></div>
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Responsável</label><input type="text" id="am-responsavel" class="form-control" list="am-resp-dl" placeholder="Quem errou"><datalist id="am-resp-dl"></datalist></div>
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Tipo do erro</label><select id="am-tipo" class="form-control"><option value="Produto trocado">Produto trocado</option><option value="Quantidade errada">Quantidade errada</option><option value="Volume errado">Volume errado</option><option value="Pedido enviado errado">Pedido enviado errado</option></select></div>
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Qtd</label><input type="number" id="am-qtd" class="form-control" min="1" value="1"></div>
+                    </div>
+                    <div style="margin-top:0.8rem;"><label style="font-size:0.75rem; color:var(--text-sec);">Observação</label><input type="text" id="am-obs" class="form-control" placeholder="Observação (opcional)"></div>
+                    <div style="margin-top:0.9rem; text-align:right;"><button class="btn btn-primary" onclick="app.salvarErroOperacao()">✔ Registrar erro</button></div>
+                </div>
+                <div class="req-analise-mensal-edit" style="border:1px solid var(--border); border-radius:8px; padding:1rem; margin-bottom:1.2rem; background:var(--hover-bg);">
+                    <h3 style="margin:0 0 0.3rem 0; font-size:1rem;">⚡ Lançamento rápido (resumo do mês)</h3>
+                    <p style="font-size:0.8rem; color:var(--text-sec); margin:0 0 0.8rem;">Informe só o total de erros de cada setor no mês selecionado abaixo. A acurácia é calculada automaticamente com o total de pedidos do mês.</p>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:0.8rem;">
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Erros Separação</label><input type="number" id="am-res-sep" class="form-control" min="0" value="0" oninput="app.previewResumoMes()"></div>
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Erros Conferência</label><input type="number" id="am-res-conf" class="form-control" min="0" value="0" oninput="app.previewResumoMes()"></div>
+                        <div><label style="font-size:0.75rem; color:var(--text-sec);">Erros Expedição</label><input type="number" id="am-res-exp" class="form-control" min="0" value="0" oninput="app.previewResumoMes()"></div>
+                    </div>
+                    <div id="am-res-preview" style="margin-top:0.8rem; font-size:0.9rem;"></div>
+                    <div style="margin-top:0.9rem; text-align:right;"><button class="btn btn-primary" onclick="app.salvarResumoMes()">✔ Salvar resumo do mês</button></div>
+                </div>
+                <div style="display:flex; gap:0.6rem; align-items:center; margin-bottom:0.8rem; flex-wrap:wrap;">
+                    <label style="font-size:0.85rem; color:var(--text-sec);">Mês:</label>
+                    <input type="month" id="am-filtro-mes" class="form-control" style="max-width:180px;" onchange="app.mudarMesRegistro()">
+                    <label style="font-size:0.85rem; color:var(--text-sec); margin-left:0.5rem;">Total de pedidos do mês:</label>
+                    <span id="am-reg-total-auto" style="font-size:0.82rem; color:var(--text-sec);"></span>
+                    <input type="number" id="am-reg-total" class="form-control req-analise-mensal-edit" style="max-width:120px;" placeholder="manual" min="0">
+                    <button class="btn btn-secondary req-analise-mensal-edit" style="padding:0.3rem 0.7rem;" onclick="app.salvarTotalMesReg()">Salvar total</button>
+                    <span id="am-lista-count" style="font-size:0.85rem; color:var(--text-sec);"></span>
+                </div>
+                <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:0.85rem;"><thead><tr><th>Data</th><th>Cliente</th><th>Pedido</th><th>Setor</th><th>Responsável</th><th>Tipo</th><th>Qtd</th><th>Obs</th><th></th></tr></thead><tbody id="am-erros-tbody"></tbody></table></div>
+            </div>
+            <div id="am-dashboard" class="am-subtab-content" style="display:none;">
+                <div style="display:flex; gap:0.6rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap;">
+                    <label style="font-size:0.85rem; color:var(--text-sec);">Mês:</label>
+                    <input type="month" id="am-dash-mes" class="form-control" style="max-width:170px;" onchange="app.renderAnaliseMensalDashboard()">
+                    <label style="font-size:0.85rem; color:var(--text-sec); margin-left:0.5rem;">Pedidos no mês:</label>
+                    <span id="am-dash-total-auto" style="font-size:0.82rem; color:var(--text-sec);"></span>
+                    <input type="number" id="am-dash-total-manual" class="form-control req-analise-mensal-edit" style="max-width:120px;" placeholder="manual" min="0">
+                    <button class="btn btn-secondary req-analise-mensal-edit" style="padding:0.3rem 0.7rem;" onclick="app.salvarTotalMes()">Salvar total</button>
+                </div>
+                <div id="am-dash-cards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:0.8rem; margin-bottom:1.2rem;"></div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:1rem;">
+                    <div style="border:1px solid var(--border); border-radius:8px; padding:1rem;"><h3 style="margin:0 0 0.8rem; font-size:0.95rem;">Erros por setor</h3><div id="am-dash-setor"></div></div>
+                    <div style="border:1px solid var(--border); border-radius:8px; padding:1rem;"><h3 style="margin:0 0 0.8rem; font-size:0.95rem;">Erros por responsável</h3><div id="am-dash-resp"></div></div>
+                </div>
+            </div>
+            <div id="am-evolucao" class="am-subtab-content" style="display:none;">
+                <div style="display:flex; gap:0.6rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap;">
+                    <label style="font-size:0.85rem; color:var(--text-sec);">Ano:</label>
+                    <input type="number" id="am-evo-ano" class="form-control" style="max-width:120px;" min="2020" onchange="app.renderAnaliseMensalEvolucao()">
+                </div>
+                <div style="border:1px solid var(--border); border-radius:8px; padding:1rem; margin-bottom:1rem;"><h3 style="margin:0 0 0.8rem; font-size:0.95rem;">Acurácia por mês</h3><div id="am-evo-chart"></div></div>
+                <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:0.85rem;"><thead><tr><th style="padding:0.45rem 0.5rem; border-bottom:1px solid var(--border); text-align:left;">Mês</th><th style="padding:0.45rem 0.5rem; border-bottom:1px solid var(--border); text-align:left;">Pedidos</th><th style="padding:0.45rem 0.5rem; border-bottom:1px solid var(--border); text-align:left;">Erros</th><th style="padding:0.45rem 0.5rem; border-bottom:1px solid var(--border); text-align:left;">Acurácia</th></tr></thead><tbody id="am-evo-tbody"></tbody></table></div>
+            </div>
+            <div id="am-tv" class="am-subtab-content" style="display:none;">
+                <div style="display:flex; gap:0.6rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap;">
+                    <select id="am-tv-periodo" class="form-control" style="max-width:130px;" onchange="app.toggleTvPeriodo()"><option value="mes">Mês</option><option value="ano">Ano inteiro</option></select>
+                    <input type="month" id="am-tv-mes" class="form-control" style="max-width:170px;" onchange="app.renderAnaliseMensalTV()">
+                    <input type="number" id="am-tv-ano" class="form-control" style="max-width:120px; display:none;" min="2020" placeholder="Ano" onchange="app.renderAnaliseMensalTV()">
+                    <select id="am-tv-setor" class="form-control" style="max-width:170px;" onchange="app.renderAnaliseMensalTV()"><option value="Todos">Toda a equipe</option><option value="Separação">Separação</option><option value="Conferência">Conferência</option><option value="Expedição">Expedição</option><option value="Conf+Exp">Conferência + Expedição</option></select>
+                    <button class="btn btn-primary" style="padding:0.3rem 0.8rem;" onclick="app.toggleFullscreenTV()">⛶ Tela cheia</button>
+                </div>
+                <div id="am-tv-tela" style="background:var(--card-bg, #0b0b0f); border:1px solid var(--border); border-radius:12px; padding:2.5rem 1.5rem; text-align:center;">
+                    <div id="am-tv-titulo" style="font-size:1.3rem; color:var(--text-sec); margin-bottom:1.5rem;"></div>
+                    <div id="am-tv-geral"></div>
+                    <div id="am-tv-setores" style="display:flex; justify-content:center; gap:2.5rem; flex-wrap:wrap; margin-top:2rem;"></div>
+                    <div id="am-tv-atualizado" style="font-size:0.75rem; color:var(--text-sec); margin-top:1.5rem;"></div>
+                </div>
+            </div>
+        </section>
+
         <section id="fiscal-module" class="module">
             <div class="top-bar"><h1>Fiscal — Envio de Documentos</h1></div>
             <div class="tabs" style="display:flex; gap:0.5rem; border-bottom:1px solid var(--border); margin-bottom:1rem; flex-wrap:wrap;">
@@ -2565,6 +2660,7 @@ body.monitor-mode .queue-card button { display: none !important; }
                 <div class="flex justify-between items-center mb-2"><span style="font-size: 12px; font-weight: 600; width: 100px;">🧾 Fiscal</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-fiscal-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-fiscal-editar" class="perm-cb"> Editar/Lançar</label></div></div>
                 <div class="flex justify-between items-center mb-2"><span style="font-size: 12px; font-weight: 600; width: 100px;">💬 SAC</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-sac-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-sac-editar" class="perm-cb"> Editar/Lançar</label></div></div>
                 <div class="flex justify-between items-center mb-2"><span style="font-size: 12px; font-weight: 600; width: 100px;">📊 Análise do SAC</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-analise-sac-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-analise-sac-editar" class="perm-cb"> Editar/Lançar</label></div></div>
+                <div class="flex justify-between items-center mb-2"><span style="font-size: 12px; font-weight: 600; width: 100px;">📊 Análise Mensal</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-analise-mensal-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-analise-mensal-editar" class="perm-cb"> Editar/Lançar</label></div></div>
                 <div class="flex justify-between items-center"><span style="font-size: 12px; font-weight: 600; width: 100px;">⚙️ Config.</span><div class="flex gap-2"><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-config-ver" class="perm-cb"> Visualizar</label><label style="font-size: 11px; display: flex; align-items: center; gap: 0.3rem;"><input type="checkbox" id="perm-config-editar" class="perm-cb"> Editar/Lançar</label></div></div>
             </div>
         </form>
@@ -2594,7 +2690,7 @@ const app = (function() {
         const ehAdmin = state.currentUser.perfil === 'admin';
         const TUDO = { ver: true, editar: true };
         const p = ehAdmin
-            ? { dashboard: TUDO, pedidos: TUDO, operacional: { sep: true, conf: true }, relatorio: TUDO, atendimento: TUDO, financeiro: TUDO, reposicao: TUDO, config: TUDO, estoque: TUDO, devolucao: TUDO, importacao: TUDO, alteracao: TUDO, produtividade: TUDO, registro: TUDO, fiscal: TUDO, sac: TUDO, analiseSac: TUDO }
+            ? { dashboard: TUDO, pedidos: TUDO, operacional: { sep: true, conf: true }, relatorio: TUDO, atendimento: TUDO, financeiro: TUDO, reposicao: TUDO, config: TUDO, estoque: TUDO, devolucao: TUDO, importacao: TUDO, alteracao: TUDO, produtividade: TUDO, registro: TUDO, fiscal: TUDO, sac: TUDO, analiseSac: TUDO, analiseMensal: TUDO }
             : (state.currentUser.permissoes || { dashboard: {ver: true}, pedidos: { ver: true, editar: true }, operacional: { sep: true, conf: true }, relatorio: {ver: true}, atendimento: { ver: true, editar: true }, reposicao: { ver: true, editar: true }, config: { ver: true, editar: true } });
         if (!p.dashboard) p.dashboard = { ver: true };
         if (!p.operacional) p.operacional = { sep: true, conf: true };
@@ -2639,6 +2735,8 @@ const app = (function() {
         document.body.setAttribute('data-perm-sac-edit', p.sac.editar);
         document.body.setAttribute('data-perm-analise-sac-ver', p.analiseSac.ver);
         document.body.setAttribute('data-perm-analise-sac-edit', p.analiseSac.editar);
+        document.body.setAttribute('data-perm-analise-mensal-ver', p.analiseMensal ? p.analiseMensal.ver : false);
+        document.body.setAttribute('data-perm-analise-mensal-edit', p.analiseMensal ? p.analiseMensal.editar : false);
 
         const activeNav = document.querySelector('.nav-item.active');
         if (activeNav && window.getComputedStyle(activeNav).display === 'none') {
@@ -2805,6 +2903,365 @@ const app = (function() {
         });
     }
 
+    function switchAnaliseMensalSubtab(tab) {
+        document.querySelectorAll('.am-subtab-content').forEach(c => c.style.display = 'none');
+        const alvo = document.getElementById(tab); if (alvo) alvo.style.display = 'block';
+        document.querySelectorAll('.am-subtab').forEach(t => t.classList.remove('active'));
+        const btn = document.querySelector(`.am-subtab[data-amtab="${tab}"]`); if (btn) btn.classList.add('active');
+        if (tab === 'am-registrar') carregarErrosOperacao();
+        if (tab === 'am-dashboard') renderAnaliseMensalDashboard();
+        if (tab === 'am-evolucao') renderAnaliseMensalEvolucao();
+        if (_amTvInterval) { clearInterval(_amTvInterval); _amTvInterval = null; }
+        if (tab === 'am-tv') { renderAnaliseMensalTV(); _amTvInterval = setInterval(() => { const tv = document.getElementById('am-tv'); const mod = document.getElementById('analise-mensal-module'); if (!tv || tv.style.display === 'none' || !mod || !mod.classList.contains('active')) { clearInterval(_amTvInterval); _amTvInterval = null; return; } renderAnaliseMensalTV(); }, 300000); }
+    }
+
+    let _amTvInterval = null;
+
+    function toggleTvPeriodo() {
+        const periodo = document.getElementById('am-tv-periodo').value;
+        const mesEl = document.getElementById('am-tv-mes'); if (mesEl) mesEl.style.display = periodo === 'ano' ? 'none' : '';
+        const anoEl = document.getElementById('am-tv-ano'); if (anoEl) anoEl.style.display = periodo === 'ano' ? '' : 'none';
+        renderAnaliseMensalTV();
+    }
+
+    async function renderAnaliseMensalTV() {
+        if (!state.pedidos || state.pedidos.length === 0) { if (typeof carregarPedidos === 'function') await carregarPedidos(); }
+        const periodo = (document.getElementById('am-tv-periodo') || {}).value || 'mes';
+        const setorFiltro = (document.getElementById('am-tv-setor') || {}).value || 'Todos';
+        let ano, iniISO, fimISO, titulo, mesesDoPeriodo;
+        if (periodo === 'ano') {
+            const anoInput = document.getElementById('am-tv-ano');
+            if (anoInput && !anoInput.value) anoInput.value = new Date().getFullYear();
+            ano = anoInput ? parseInt(anoInput.value) : new Date().getFullYear();
+            iniISO = `${ano}-01-01`; fimISO = `${ano}-12-31`; titulo = `Ano ${ano}`;
+            mesesDoPeriodo = [1,2,3,4,5,6,7,8,9,10,11,12];
+        } else {
+            const mesInput = document.getElementById('am-tv-mes');
+            if (mesInput && !mesInput.value) { const d = new Date(); mesInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
+            const mes = mesInput ? mesInput.value : '';
+            if (!mes) return;
+            const pr = mes.split('-'); ano = parseInt(pr[0]); const mm = pr[1];
+            const fimDate = new Date(ano, parseInt(mm), 0);
+            iniISO = `${pr[0]}-${mm}-01`; fimISO = `${pr[0]}-${mm}-${String(fimDate.getDate()).padStart(2, '0')}`;
+            const nomesMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            titulo = `${nomesMes[parseInt(mm) - 1]}/${pr[0]}`;
+            mesesDoPeriodo = [parseInt(mm)];
+        }
+        let totais = [];
+        try { const r = await db.from('acuracia_totais').select('*').eq('admin_id', state.adminId).eq('ano', ano); totais = r.data || []; } catch (e) { totais = []; }
+        const manualMap = {}; totais.forEach(t => { manualMap[t.mes] = t.total_pedidos; });
+        let total = 0;
+        mesesDoPeriodo.forEach(mm => { const mesStr = `${ano}-${String(mm).padStart(2, '0')}`; const auto = (state.pedidos || []).filter(x => _amMesDe(x.data) === mesStr).length; total += (manualMap[mm] && manualMap[mm] > 0) ? manualMap[mm] : auto; });
+        const { data: man } = await db.from('erros_operacao').select('*').eq('admin_id', state.adminId).gte('data', iniISO).lte('data', fimISO);
+        const lista = (man || []).concat(await _amErrosEstoque(iniISO, fimISO));
+        const setores = ['Separação', 'Conferência', 'Expedição'];
+        const errosSetor = {}; setores.forEach(st => errosSetor[st] = 0);
+        let totalErros = 0;
+        lista.forEach(e => { const q = e.qtd || 1; totalErros += q; if (errosSetor[e.setor] !== undefined) errosSetor[e.setor] += q; });
+        let setoresEscopo; let rotuloSetor = setorFiltro;
+        if (setorFiltro === 'Todos') { setoresEscopo = setores; }
+        else if (setorFiltro === 'Conf+Exp') { setoresEscopo = ['Conferência', 'Expedição']; rotuloSetor = 'Conferência + Expedição'; }
+        else { setoresEscopo = [setorFiltro]; }
+        const errosEscopo = setorFiltro === 'Todos' ? totalErros : setoresEscopo.reduce((a, st) => a + (errosSetor[st] || 0), 0);
+        const acEscopo = total > 0 ? Math.max(0, (total - errosEscopo) / total * 100) : 0;
+        const taxaEscopo = total > 0 ? Math.min(100, errosEscopo / total * 100) : 0;
+        const tituloEl = document.getElementById('am-tv-titulo'); if (tituloEl) tituloEl.textContent = `Acurácia Operacional — ${titulo}${setorFiltro !== 'Todos' ? ' · ' + rotuloSetor : ''}`;
+        const corGeral = acEscopo >= 98 ? 'var(--success,#28a745)' : 'var(--danger)';
+        const geralEl = document.getElementById('am-tv-geral'); if (geralEl) geralEl.innerHTML = `<div style="font-size:5rem; font-weight:800; line-height:1; color:${corGeral};">${acEscopo.toFixed(2)}%</div><div style="font-size:1rem; color:var(--text-sec); margin-top:0.6rem;">${setorFiltro === 'Todos' ? 'Acurácia geral' : 'Acurácia ' + rotuloSetor} · ${total} pedidos · ${errosEscopo} erros · ${taxaEscopo.toFixed(2)}% de erro</div>`;
+        const setoresEl = document.getElementById('am-tv-setores');
+        if (periodo === 'ano') {
+            const nomesM = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            let gridHtml = '';
+            for (let mm = 1; mm <= 12; mm++) {
+                const mesStr = `${ano}-${String(mm).padStart(2, '0')}`;
+                const autoM = (state.pedidos || []).filter(x => _amMesDe(x.data) === mesStr).length;
+                const totalM = (manualMap[mm] && manualMap[mm] > 0) ? manualMap[mm] : autoM;
+                const errosM = lista.filter(e => (e.data || '').slice(0, 7) === mesStr && (setorFiltro === 'Todos' || setoresEscopo.includes(e.setor))).reduce((a, e) => a + (e.qtd || 1), 0);
+                if (totalM <= 0 && errosM === 0) continue;
+                const acM = totalM > 0 ? Math.max(0, (totalM - errosM) / totalM * 100) : null;
+                const taxaM = totalM > 0 ? Math.min(100, errosM / totalM * 100) : 0;
+                const corM = acM === null ? 'var(--text-sec)' : (acM >= 98 ? 'var(--success,#28a745)' : 'var(--danger)');
+                gridHtml += `<div style="min-width:100px; text-align:center;"><div style="font-size:0.9rem; color:var(--text-sec);">${nomesM[mm - 1]}</div><div style="font-size:1.7rem; font-weight:700; color:${corM};">${acM === null ? '—' : acM.toFixed(2) + '%'}</div><div style="font-size:0.75rem; color:var(--text-sec);">${acM === null ? '' : taxaM.toFixed(2) + '% erro'}</div></div>`;
+            }
+            if (setoresEl) setoresEl.innerHTML = gridHtml || '<p style="color:var(--text-sec);">Sem dados no ano.</p>';
+        } else {
+            const mostrar = setorFiltro === 'Todos' ? setores : setoresEscopo;
+            if (setoresEl) setoresEl.innerHTML = mostrar.map(st => {
+                const es = errosSetor[st] || 0;
+                const acS = total > 0 ? Math.max(0, (total - es) / total * 100) : 0;
+                const cor = acS >= 98 ? 'var(--success,#28a745)' : 'var(--danger)';
+                return `<div><div style="font-size:2.6rem; font-weight:700; color:${cor};">${acS.toFixed(2)}%</div><div style="font-size:0.95rem; color:var(--text-sec);">${st}</div><div style="font-size:0.8rem; color:var(--text-sec);">${es} erro(s)</div></div>`;
+            }).join('');
+        }
+        const atEl = document.getElementById('am-tv-atualizado'); if (atEl) atEl.textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+    }
+
+    function toggleFullscreenTV() {
+        const el = document.getElementById('am-tv-tela');
+        if (!el) return;
+        if (!document.fullscreenElement) { if (el.requestFullscreen) el.requestFullscreen(); }
+        else { if (document.exitFullscreen) document.exitFullscreen(); }
+    }
+
+    async function renderAnaliseMensalEvolucao() {
+        const anoInput = document.getElementById('am-evo-ano');
+        if (anoInput && !anoInput.value) anoInput.value = new Date().getFullYear();
+        const ano = anoInput ? parseInt(anoInput.value) : new Date().getFullYear();
+        if (!ano) return;
+        const ini = `${ano}-01-01`, fim = `${ano}-12-31`;
+        const { data: erros } = await db.from('erros_operacao').select('*').eq('admin_id', state.adminId).gte('data', ini).lte('data', fim);
+        const lista = (erros || []).concat(await _amErrosEstoque(ini, fim));
+        let totais = [];
+        try { const r = await db.from('acuracia_totais').select('*').eq('admin_id', state.adminId).eq('ano', ano); totais = r.data || []; } catch (e) { totais = []; }
+        const manualMap = {};
+        totais.forEach(t => { manualMap[t.mes] = t.total_pedidos; });
+        if (!state.pedidos || state.pedidos.length === 0) { if (typeof carregarPedidos === 'function') await carregarPedidos(); }
+        const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const linhas = [];
+        const chartItens = [];
+        for (let mm = 1; mm <= 12; mm++) {
+            const mesStr = `${ano}-${String(mm).padStart(2, '0')}`;
+            const errosM = lista.filter(e => (e.data || '').slice(0, 7) === mesStr).reduce((a, e) => a + (e.qtd || 1), 0);
+            const auto = (state.pedidos || []).filter(x => _amMesDe(x.data) === mesStr).length;
+            const total = (manualMap[mm] && manualMap[mm] > 0) ? manualMap[mm] : auto;
+            const ac = total > 0 ? Math.max(0, (total - errosM) / total * 100) : null;
+            linhas.push({ nome: nomes[mm - 1], total, erros: errosM, ac });
+            if (total > 0) chartItens.push({ label: nomes[mm - 1], valor: parseFloat(ac.toFixed(2)) });
+        }
+        const chartEl = document.getElementById('am-evo-chart');
+        if (chartEl) {
+            if (chartItens.length === 0) chartEl.innerHTML = '<p style="color:var(--text-sec); font-size:0.85rem;">Sem dados neste ano.</p>';
+            else chartEl.innerHTML = chartItens.map(i => `<div style="margin-bottom:0.5rem;"><div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:0.15rem;"><span>${i.label}</span><strong>${i.valor.toFixed(2)}%</strong></div><div style="background:var(--hover-bg); border-radius:4px; height:10px; overflow:hidden;"><div style="width:${i.valor}%; height:100%; background:${i.valor >= 98 ? 'var(--success,#28a745)' : 'var(--danger)'};"></div></div></div>`).join('');
+        }
+        const tbody = document.getElementById('am-evo-tbody');
+        if (tbody) tbody.innerHTML = linhas.map(l => `<tr><td style="padding:0.4rem; border-bottom:1px solid var(--border);">${l.nome}</td><td style="padding:0.4rem; border-bottom:1px solid var(--border);">${l.total}</td><td style="padding:0.4rem; border-bottom:1px solid var(--border);">${l.erros}</td><td style="padding:0.4rem; border-bottom:1px solid var(--border); color:${l.ac === null ? 'var(--text-sec)' : (l.ac >= 98 ? 'var(--success,#28a745)' : 'var(--danger)')};">${l.ac === null ? '—' : l.ac.toFixed(2) + '%'}</td></tr>`).join('');
+    }
+
+    function _amMesDe(dataStr) {
+        if (!dataStr) return '';
+        const str = String(dataStr).trim();
+        if (/^\d{4}-\d{2}/.test(str)) return str.slice(0, 7);
+        const mm = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (mm) return `${mm[3]}-${mm[2]}`;
+        return '';
+    }
+
+    function _amBarras(itens, cor) {
+        if (!itens || itens.length === 0) return '<p style="color:var(--text-sec); font-size:0.85rem;">Sem dados.</p>';
+        const max = Math.max(1, ...itens.map(i => i.valor));
+        return itens.map(i => `<div style="margin-bottom:0.6rem;"><div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:0.2rem;"><span>${escapeWms(i.label)}</span><strong>${i.valor}</strong></div><div style="background:var(--hover-bg); border-radius:4px; height:10px; overflow:hidden;"><div style="width:${(i.valor / max * 100).toFixed(1)}%; height:100%; background:${cor};"></div></div></div>`).join('');
+    }
+
+    async function _amErrosEstoque(iniISO, fimISO) {
+        let est = [];
+        try { const r = await db.from('erros').select('*').eq('admin_id', state.adminId); est = r.data || []; } catch (e) { return []; }
+        const iniY = iniISO.slice(0, 7), fimY = fimISO.slice(0, 7);
+        const out = [];
+        est.forEach(e => {
+            const parts = (e.data || '').split('/');
+            if (parts.length !== 3) return;
+            const mesISO = `${parts[2]}-${parts[1]}`;
+            if (mesISO < iniY || mesISO > fimY) return;
+            const q = (e.erros_quantidade || 0) + (e.erros_produto || 0);
+            if (q > 0) out.push({ data: `${mesISO}-01`, setor: 'Separação', qtd: q, responsavel: e.separador || 'Não informado', _estoque: true });
+        });
+        return out;
+    }
+
+    async function renderAnaliseMensalDashboard() {
+        const mesInput = document.getElementById('am-dash-mes');
+        if (mesInput && !mesInput.value) { const d = new Date(); mesInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
+        const mes = mesInput ? mesInput.value : '';
+        if (!mes) return;
+        const [ano, m] = mes.split('-');
+        const ini = `${ano}-${m}-01`;
+        const fimDate = new Date(parseInt(ano), parseInt(m), 0);
+        const fim = `${ano}-${m}-${String(fimDate.getDate()).padStart(2, '0')}`;
+        const { data: erros } = await db.from('erros_operacao').select('*').eq('admin_id', state.adminId).gte('data', ini).lte('data', fim);
+        const lista = (erros || []).concat(await _amErrosEstoque(ini, fim));
+        if (!state.pedidos || state.pedidos.length === 0) { if (typeof carregarPedidos === 'function') await carregarPedidos(); }
+        const totalAuto = (state.pedidos || []).filter(x => _amMesDe(x.data) === mes).length;
+        const autoEl = document.getElementById('am-dash-total-auto'); if (autoEl) autoEl.textContent = `(automático: ${totalAuto})`;
+        let totRow = null;
+        try { const r = await db.from('acuracia_totais').select('*').eq('admin_id', state.adminId).eq('ano', parseInt(ano)).eq('mes', parseInt(m)).maybeSingle(); totRow = r.data; } catch (e) { totRow = null; }
+        const manualInput = document.getElementById('am-dash-total-manual'); if (manualInput) manualInput.value = (totRow && totRow.total_pedidos) ? totRow.total_pedidos : '';
+        const total = (totRow && totRow.total_pedidos > 0) ? totRow.total_pedidos : totalAuto;
+        const totalErros = lista.reduce((acc, e) => acc + (e.qtd || 1), 0);
+        const acuracia = total > 0 ? Math.max(0, (total - totalErros) / total * 100) : 0;
+        const taxaErro = total > 0 ? Math.min(100, totalErros / total * 100) : 0;
+        const cards = [
+            { t: 'Acurácia geral', v: acuracia.toFixed(2) + '%', c: acuracia >= 98 ? 'var(--success,#28a745)' : 'var(--danger)' },
+            { t: 'Taxa de erro', v: taxaErro.toFixed(2) + '%', c: 'var(--danger)' },
+            { t: 'Total de erros', v: totalErros, c: 'var(--text-main)' },
+            { t: 'Pedidos no mês', v: total, c: 'var(--accent)' }
+        ];
+        const cardsEl = document.getElementById('am-dash-cards'); if (cardsEl) cardsEl.innerHTML = cards.map(k => `<div style="border:1px solid var(--border); border-radius:8px; padding:0.9rem 1rem; text-align:center;"><div style="font-size:1.6rem; font-weight:700; color:${k.c};">${k.v}</div><div style="font-size:0.78rem; color:var(--text-sec);">${k.t}</div></div>`).join('');
+        const setores = ['Separação', 'Conferência', 'Expedição'];
+        const porSetor = setores.map(st => { const es = lista.filter(e => e.setor === st).reduce((a, e) => a + (e.qtd || 1), 0); const acS = total > 0 ? Math.max(0, (total - es) / total * 100) : 0; return { label: `${st} — ${acS.toFixed(2)}%`, valor: es }; });
+        const setorEl = document.getElementById('am-dash-setor'); if (setorEl) setorEl.innerHTML = _amBarras(porSetor, 'var(--accent)');
+        const respMap = {};
+        lista.forEach(e => { const r = e.responsavel || 'Não informado'; respMap[r] = (respMap[r] || 0) + (e.qtd || 1); });
+        const porResp = Object.keys(respMap).map(r => ({ label: r, valor: respMap[r] })).sort((a, b) => b.valor - a.valor);
+        const respEl = document.getElementById('am-dash-resp'); if (respEl) respEl.innerHTML = _amBarras(porResp, '#f59e0b');
+    }
+
+    async function salvarTotalMes() {
+        const mesInput = document.getElementById('am-dash-mes');
+        const mes = mesInput ? mesInput.value : '';
+        if (!mes) { avisar('Selecione o mês.'); return; }
+        const [ano, m] = mes.split('-');
+        const val = parseInt(document.getElementById('am-dash-total-manual').value);
+        if (isNaN(val) || val < 0) {
+            await db.from('acuracia_totais').delete().eq('admin_id', state.adminId).eq('ano', parseInt(ano)).eq('mes', parseInt(m));
+            avisar('Total manual removido — usando o automático.');
+        } else {
+            const { error } = await db.from('acuracia_totais').upsert({ admin_id: state.adminId, ano: parseInt(ano), mes: parseInt(m), total_pedidos: val }, { onConflict: 'admin_id,ano,mes' });
+            if (error) { avisar('Erro ao salvar total: ' + error.message); return; }
+            avisar('Total do mês salvo.');
+        }
+        renderAnaliseMensalDashboard();
+    }
+
+    function _nomesResponsaveis() {
+        const set = new Set();
+        ['responsaveisSep','responsaveisConf','responsaveisExp'].forEach(k => (state[k] || []).forEach(n => { if (n) set.add(n); }));
+        return [...set].sort();
+    }
+
+    async function carregarErrosOperacao() {
+        if (!state.adminId) return;
+        const dl = document.getElementById('am-resp-dl');
+        if (dl) dl.innerHTML = _nomesResponsaveis().map(n => `<option value="${escapeWms(n)}">`).join('');
+        const mesInput = document.getElementById('am-filtro-mes');
+        if (mesInput && !mesInput.value) { const d = new Date(); mesInput.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+        const dataField = document.getElementById('am-data');
+        if (dataField && !dataField.value) { dataField.value = new Date().toISOString().split('T')[0]; }
+        const mes = mesInput ? mesInput.value : '';
+        const regTotalEl = document.getElementById('am-reg-total');
+        const regAutoEl = document.getElementById('am-reg-total-auto');
+        if (mes && (regTotalEl || regAutoEl)) {
+            const rp = mes.split('-');
+            if (!state.pedidos || state.pedidos.length === 0) { if (typeof carregarPedidos === 'function') await carregarPedidos(); }
+            const autoCount = (state.pedidos || []).filter(x => _amMesDe(x.data) === mes).length;
+            if (regAutoEl) regAutoEl.textContent = `(auto: ${autoCount})`;
+            try { const r = await db.from('acuracia_totais').select('total_pedidos').eq('admin_id', state.adminId).eq('ano', parseInt(rp[0])).eq('mes', parseInt(rp[1])).maybeSingle(); if (regTotalEl) regTotalEl.value = (r.data && r.data.total_pedidos) ? r.data.total_pedidos : ''; } catch (e) {}
+        }
+        let q = db.from('erros_operacao').select('*').eq('admin_id', state.adminId).order('data', { ascending: false });
+        if (mes) { const [ano, m] = mes.split('-'); const ini = `${ano}-${m}-01`; const fimDate = new Date(parseInt(ano), parseInt(m), 0); const fim = `${ano}-${m}-${String(fimDate.getDate()).padStart(2,'0')}`; q = q.gte('data', ini).lte('data', fim); }
+        const { data, error } = await q;
+        if (error) { console.error('Erro ao carregar erros:', error.message); return; }
+        state.errosOperacao = data || [];
+        const resSep = document.getElementById('am-res-sep'), resConf = document.getElementById('am-res-conf'), resExp = document.getElementById('am-res-exp');
+        if (resSep && resConf && resExp) {
+            const resumo = { 'Separação': 0, 'Conferência': 0, 'Expedição': 0 };
+            (state.errosOperacao || []).filter(e => e.tipo_erro === 'Resumo mensal').forEach(e => { if (resumo[e.setor] !== undefined) resumo[e.setor] += (e.qtd || 0); });
+            resSep.value = resumo['Separação']; resConf.value = resumo['Conferência']; resExp.value = resumo['Expedição'];
+            if (typeof previewResumoMes === 'function') previewResumoMes();
+        }
+        renderErrosLista();
+    }
+
+    function renderErrosLista() {
+        const tbody = document.getElementById('am-erros-tbody');
+        if (!tbody) return;
+        const lista = state.errosOperacao || [];
+        const countEl = document.getElementById('am-lista-count'); if (countEl) countEl.textContent = `${lista.length} erro(s)`;
+        if (lista.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--text-sec);">Nenhum erro registrado neste mês.</td></tr>'; return; }
+        tbody.innerHTML = lista.map(e => {
+            const d = e.data ? e.data.split('-').reverse().join('/') : '';
+            return `<tr><td>${d}</td><td>${escapeWms(e.cliente || '')}</td><td>${escapeWms(e.numero || '')}</td><td>${escapeWms(e.setor || '')}</td><td>${escapeWms(e.responsavel || '')}</td><td>${escapeWms(e.tipo_erro || '')}</td><td>${e.qtd || 0}</td><td>${escapeWms(e.observacao || '')}</td><td class="req-analise-mensal-edit"><button class="btn-icon" style="color:var(--danger);" title="Excluir" onclick="app.excluirErroOperacao('${e.id}')">🗑️</button></td></tr>`;
+        }).join('');
+    }
+
+    async function mudarMesRegistro() {
+        const mesInput = document.getElementById('am-filtro-mes');
+        const mes = mesInput ? mesInput.value : '';
+        if (mes) { const dataField = document.getElementById('am-data'); if (dataField) dataField.value = `${mes}-01`; }
+        await carregarErrosOperacao();
+    }
+
+    async function salvarTotalMesReg() {
+        const mesInput = document.getElementById('am-filtro-mes');
+        const mes = mesInput ? mesInput.value : '';
+        if (!mes) { avisar('Selecione o mês.'); return; }
+        const pr = mes.split('-');
+        const val = parseInt(document.getElementById('am-reg-total').value);
+        if (isNaN(val) || val < 0) {
+            await db.from('acuracia_totais').delete().eq('admin_id', state.adminId).eq('ano', parseInt(pr[0])).eq('mes', parseInt(pr[1]));
+            avisar('Total manual removido — usando o automático.');
+        } else {
+            const { error } = await db.from('acuracia_totais').upsert({ admin_id: state.adminId, ano: parseInt(pr[0]), mes: parseInt(pr[1]), total_pedidos: val }, { onConflict: 'admin_id,ano,mes' });
+            if (error) { avisar('Erro ao salvar total: ' + error.message); return; }
+            avisar('Total do mês salvo.');
+        }
+        carregarErrosOperacao();
+    }
+
+    function previewResumoMes() {
+        const sep = parseInt(document.getElementById('am-res-sep').value) || 0;
+        const conf = parseInt(document.getElementById('am-res-conf').value) || 0;
+        const exp = parseInt(document.getElementById('am-res-exp').value) || 0;
+        const totalErros = sep + conf + exp;
+        const totEl = document.getElementById('am-reg-total');
+        const autoTxt = document.getElementById('am-reg-total-auto');
+        let total = parseInt(totEl ? totEl.value : '') || 0;
+        if (!total && autoTxt) { const mm = (autoTxt.textContent.match(/\d+/) || [0])[0]; total = parseInt(mm) || 0; }
+        const el = document.getElementById('am-res-preview');
+        if (!el) return;
+        if (total <= 0) { el.innerHTML = '<span style="color:var(--text-sec);">Informe o total de pedidos do mês abaixo para calcular a acurácia.</span>'; return; }
+        const ac = Math.max(0, (total - totalErros) / total * 100);
+        const taxa = Math.min(100, totalErros / total * 100);
+        el.innerHTML = `Total de erros: <strong>${totalErros}</strong> · Acurácia: <strong style="color:${ac >= 98 ? 'var(--success,#28a745)' : 'var(--danger)'};">${ac.toFixed(2)}%</strong> · Erro: <strong>${taxa.toFixed(2)}%</strong>`;
+    }
+
+    async function salvarResumoMes() {
+        const mesInput = document.getElementById('am-filtro-mes');
+        const mes = mesInput ? mesInput.value : '';
+        if (!mes) { avisar('Selecione o mês.'); return; }
+        const pr = mes.split('-');
+        const ini = `${pr[0]}-${pr[1]}-01`;
+        const fimDate = new Date(parseInt(pr[0]), parseInt(pr[1]), 0);
+        const fim = `${pr[0]}-${pr[1]}-${String(fimDate.getDate()).padStart(2, '0')}`;
+        const vals = { 'Separação': parseInt(document.getElementById('am-res-sep').value) || 0, 'Conferência': parseInt(document.getElementById('am-res-conf').value) || 0, 'Expedição': parseInt(document.getElementById('am-res-exp').value) || 0 };
+        try {
+            await db.from('erros_operacao').delete().eq('admin_id', state.adminId).eq('tipo_erro', 'Resumo mensal').gte('data', ini).lte('data', fim);
+            const rows = [];
+            Object.keys(vals).forEach(setor => { if (vals[setor] > 0) rows.push({ admin_id: state.adminId, data: ini, cliente: '', numero: '', setor, responsavel: '', tipo_erro: 'Resumo mensal', qtd: vals[setor], observacao: 'Lançamento rápido' }); });
+            if (rows.length > 0) { const { error } = await db.from('erros_operacao').insert(rows); if (error) throw error; }
+            avisar('Resumo do mês salvo. ✅');
+            carregarErrosOperacao();
+        } catch (e) { avisar('Erro ao salvar resumo: ' + (e.message || e)); }
+    }
+
+    async function salvarErroOperacao() {
+        const data = document.getElementById('am-data').value;
+        const cliente = document.getElementById('am-cliente').value.trim();
+        const numero = document.getElementById('am-numero').value.trim();
+        const setor = document.getElementById('am-setor').value;
+        const responsavel = document.getElementById('am-responsavel').value.trim();
+        const tipo = document.getElementById('am-tipo').value;
+        const qtd = parseInt(document.getElementById('am-qtd').value) || 1;
+        const obs = document.getElementById('am-obs').value.trim();
+        if (!data) { avisar('Informe a data.'); return; }
+        if (!setor) { avisar('Selecione o setor.'); return; }
+        const { error } = await db.from('erros_operacao').insert({ admin_id: state.adminId, data, cliente, numero, setor, responsavel, tipo_erro: tipo, qtd, observacao: obs });
+        if (error) { avisar('Erro ao registrar: ' + error.message); return; }
+        avisar('Erro registrado. ✅');
+        ['am-cliente','am-numero','am-responsavel','am-obs'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+        document.getElementById('am-qtd').value = '1';
+        const mesInput = document.getElementById('am-filtro-mes');
+        if (mesInput && data) mesInput.value = data.slice(0, 7);
+        carregarErrosOperacao();
+    }
+
+    async function excluirErroOperacao(id) {
+        const ok = await confirmar('Excluir este registro de erro?');
+        if (!ok) return;
+        const { error } = await db.from('erros_operacao').delete().eq('id', id).eq('admin_id', state.adminId);
+        if (error) { avisar('Erro ao excluir: ' + error.message); return; }
+        carregarErrosOperacao();
+    }
+
     function switchModule(navItem) {
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active')); navItem.classList.add('active');
         const targetId = navItem.getAttribute('data-target');
@@ -2814,6 +3271,7 @@ const app = (function() {
         if(targetId === 'estoque-module') { iniciarRealtimeEstoque(); } else { pararRealtimeEstoque(); }
         if(targetId === 'sac-module') { switchSacSubtab('sac-saque'); }
         if(targetId === 'analise-sac-module') { switchAnaliseSacSubtab('as-dashboard'); }
+        if(targetId === 'analise-mensal-module') { switchAnaliseMensalSubtab('am-registrar'); }
         if(targetId === 'relatorio-module') { carregarRelatorioErros(); }
         else if(targetId === 'produtividade-module') { renderProdutividade(); }
         else if(targetId === 'fiscal-module') { if (typeof renderFiscalFila === 'function') renderFiscalFila(); }
@@ -3016,7 +3474,7 @@ const app = (function() {
             const form = document.getElementById('form-usuario'); form.reset();
             if(data) {
                 document.getElementById('titulo-drawer-usuario').innerText = 'Editar'; document.getElementById('user-id').value = data.id; document.getElementById('user-nome').value = data.nome; document.getElementById('user-login').value = data.login; document.getElementById('user-senha').value = ''; document.getElementById('user-perfil').value = data.perfil;
-                const p = data.permissoes; document.getElementById('perm-dash-ver').checked = p.dashboard ? p.dashboard.ver : true; document.getElementById('perm-pedidos-ver').checked = p.pedidos.ver; document.getElementById('perm-pedidos-editar').checked = p.pedidos.editar; document.getElementById('perm-op-sep').checked = p.operacional ? p.operacional.sep : true; document.getElementById('perm-op-conf').checked = p.operacional ? p.operacional.conf : true; document.getElementById('perm-relatorio-ver').checked = p.relatorio ? p.relatorio.ver : true; document.getElementById('perm-atend-ver').checked = p.atendimento.ver; document.getElementById('perm-atend-editar').checked = p.atendimento.editar; const permFinCb = document.getElementById('perm-financeiro-ver'); if (permFinCb) permFinCb.checked = p.financeiro ? p.financeiro.ver : true; document.getElementById('perm-repo-ver').checked = p.reposicao.ver; document.getElementById('perm-repo-editar').checked = p.reposicao.editar; document.getElementById('perm-config-ver').checked = p.config.ver; document.getElementById('perm-config-editar').checked = p.config.editar; document.getElementById('perm-estoque-ver').checked = p.estoque ? p.estoque.ver : true; document.getElementById('perm-estoque-editar').checked = p.estoque ? p.estoque.editar : true; document.getElementById('perm-devolucao-ver').checked = p.devolucao ? p.devolucao.ver : true; document.getElementById('perm-devolucao-editar').checked = p.devolucao ? p.devolucao.editar : true; document.getElementById('perm-importacao-ver').checked = p.importacao ? p.importacao.ver : true; document.getElementById('perm-importacao-editar').checked = p.importacao ? p.importacao.editar : true; document.getElementById('perm-alteracao-ver').checked = p.alteracao ? p.alteracao.ver : true; document.getElementById('perm-produtividade-ver').checked = p.produtividade ? p.produtividade.ver : true; document.getElementById('perm-registro-ver').checked = p.registro ? p.registro.ver : false; document.getElementById('perm-registro-editar').checked = p.registro ? p.registro.editar : false; document.getElementById('perm-fiscal-ver').checked = p.fiscal ? p.fiscal.ver : false; document.getElementById('perm-fiscal-editar').checked = p.fiscal ? p.fiscal.editar : false; document.getElementById('perm-sac-ver').checked = p.sac ? p.sac.ver : false; document.getElementById('perm-sac-editar').checked = p.sac ? p.sac.editar : false; document.getElementById('perm-analise-sac-ver').checked = p.analiseSac ? p.analiseSac.ver : false; document.getElementById('perm-analise-sac-editar').checked = p.analiseSac ? p.analiseSac.editar : false;
+                const p = data.permissoes; document.getElementById('perm-dash-ver').checked = p.dashboard ? p.dashboard.ver : true; document.getElementById('perm-pedidos-ver').checked = p.pedidos.ver; document.getElementById('perm-pedidos-editar').checked = p.pedidos.editar; document.getElementById('perm-op-sep').checked = p.operacional ? p.operacional.sep : true; document.getElementById('perm-op-conf').checked = p.operacional ? p.operacional.conf : true; document.getElementById('perm-relatorio-ver').checked = p.relatorio ? p.relatorio.ver : true; document.getElementById('perm-atend-ver').checked = p.atendimento.ver; document.getElementById('perm-atend-editar').checked = p.atendimento.editar; const permFinCb = document.getElementById('perm-financeiro-ver'); if (permFinCb) permFinCb.checked = p.financeiro ? p.financeiro.ver : true; document.getElementById('perm-repo-ver').checked = p.reposicao.ver; document.getElementById('perm-repo-editar').checked = p.reposicao.editar; document.getElementById('perm-config-ver').checked = p.config.ver; document.getElementById('perm-config-editar').checked = p.config.editar; document.getElementById('perm-estoque-ver').checked = p.estoque ? p.estoque.ver : true; document.getElementById('perm-estoque-editar').checked = p.estoque ? p.estoque.editar : true; document.getElementById('perm-devolucao-ver').checked = p.devolucao ? p.devolucao.ver : true; document.getElementById('perm-devolucao-editar').checked = p.devolucao ? p.devolucao.editar : true; document.getElementById('perm-importacao-ver').checked = p.importacao ? p.importacao.ver : true; document.getElementById('perm-importacao-editar').checked = p.importacao ? p.importacao.editar : true; document.getElementById('perm-alteracao-ver').checked = p.alteracao ? p.alteracao.ver : true; document.getElementById('perm-produtividade-ver').checked = p.produtividade ? p.produtividade.ver : true; document.getElementById('perm-registro-ver').checked = p.registro ? p.registro.ver : false; document.getElementById('perm-registro-editar').checked = p.registro ? p.registro.editar : false; document.getElementById('perm-fiscal-ver').checked = p.fiscal ? p.fiscal.ver : false; document.getElementById('perm-fiscal-editar').checked = p.fiscal ? p.fiscal.editar : false; document.getElementById('perm-sac-ver').checked = p.sac ? p.sac.ver : false; document.getElementById('perm-sac-editar').checked = p.sac ? p.sac.editar : false; document.getElementById('perm-analise-sac-ver').checked = p.analiseSac ? p.analiseSac.ver : false; document.getElementById('perm-analise-sac-editar').checked = p.analiseSac ? p.analiseSac.editar : false; document.getElementById('perm-analise-mensal-ver').checked = p.analiseMensal ? p.analiseMensal.ver : false; document.getElementById('perm-analise-mensal-editar').checked = p.analiseMensal ? p.analiseMensal.editar : false;
             } else { document.getElementById('titulo-drawer-usuario').innerText = 'Novo'; document.getElementById('user-id').value = ''; document.querySelectorAll('.perm-cb').forEach(cb => cb.checked = true); document.getElementById('user-perfil').value = 'Operador'; }
         }
     }
@@ -8211,7 +8669,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         const login = document.getElementById('user-login').value.trim();
         const senha = document.getElementById('user-senha').value.trim();
         if(!nome || !login) { avisar('Preencha Nome e Login.'); return; }
-        const permissoes = { dashboard: { ver: document.getElementById('perm-dash-ver').checked }, pedidos: { ver: document.getElementById('perm-pedidos-ver').checked, editar: document.getElementById('perm-pedidos-editar').checked }, operacional: { sep: document.getElementById('perm-op-sep').checked, conf: document.getElementById('perm-op-conf').checked }, relatorio: { ver: document.getElementById('perm-relatorio-ver').checked }, atendimento: { ver: document.getElementById('perm-atend-ver').checked, editar: document.getElementById('perm-atend-editar').checked }, financeiro: { ver: document.getElementById('perm-financeiro-ver') ? document.getElementById('perm-financeiro-ver').checked : true }, reposicao: { ver: document.getElementById('perm-repo-ver').checked, editar: document.getElementById('perm-repo-editar').checked }, config: { ver: document.getElementById('perm-config-ver').checked, editar: document.getElementById('perm-config-editar').checked }, estoque: { ver: document.getElementById('perm-estoque-ver').checked, editar: document.getElementById('perm-estoque-editar').checked }, devolucao: { ver: document.getElementById('perm-devolucao-ver').checked, editar: document.getElementById('perm-devolucao-editar').checked }, importacao: { ver: document.getElementById('perm-importacao-ver').checked, editar: document.getElementById('perm-importacao-editar').checked }, alteracao: { ver: document.getElementById('perm-alteracao-ver').checked }, produtividade: { ver: document.getElementById('perm-produtividade-ver').checked }, registro: { ver: document.getElementById('perm-registro-ver').checked, editar: document.getElementById('perm-registro-editar').checked }, fiscal: { ver: document.getElementById('perm-fiscal-ver').checked, editar: document.getElementById('perm-fiscal-editar').checked }, sac: { ver: document.getElementById('perm-sac-ver').checked, editar: document.getElementById('perm-sac-editar').checked }, analiseSac: { ver: document.getElementById('perm-analise-sac-ver').checked, editar: document.getElementById('perm-analise-sac-editar').checked } };
+        const permissoes = { dashboard: { ver: document.getElementById('perm-dash-ver').checked }, pedidos: { ver: document.getElementById('perm-pedidos-ver').checked, editar: document.getElementById('perm-pedidos-editar').checked }, operacional: { sep: document.getElementById('perm-op-sep').checked, conf: document.getElementById('perm-op-conf').checked }, relatorio: { ver: document.getElementById('perm-relatorio-ver').checked }, atendimento: { ver: document.getElementById('perm-atend-ver').checked, editar: document.getElementById('perm-atend-editar').checked }, financeiro: { ver: document.getElementById('perm-financeiro-ver') ? document.getElementById('perm-financeiro-ver').checked : true }, reposicao: { ver: document.getElementById('perm-repo-ver').checked, editar: document.getElementById('perm-repo-editar').checked }, config: { ver: document.getElementById('perm-config-ver').checked, editar: document.getElementById('perm-config-editar').checked }, estoque: { ver: document.getElementById('perm-estoque-ver').checked, editar: document.getElementById('perm-estoque-editar').checked }, devolucao: { ver: document.getElementById('perm-devolucao-ver').checked, editar: document.getElementById('perm-devolucao-editar').checked }, importacao: { ver: document.getElementById('perm-importacao-ver').checked, editar: document.getElementById('perm-importacao-editar').checked }, alteracao: { ver: document.getElementById('perm-alteracao-ver').checked }, produtividade: { ver: document.getElementById('perm-produtividade-ver').checked }, registro: { ver: document.getElementById('perm-registro-ver').checked, editar: document.getElementById('perm-registro-editar').checked }, fiscal: { ver: document.getElementById('perm-fiscal-ver').checked, editar: document.getElementById('perm-fiscal-editar').checked }, sac: { ver: document.getElementById('perm-sac-ver').checked, editar: document.getElementById('perm-sac-editar').checked }, analiseSac: { ver: document.getElementById('perm-analise-sac-ver').checked, editar: document.getElementById('perm-analise-sac-editar').checked }, analiseMensal: { ver: document.getElementById('perm-analise-mensal-ver').checked, editar: document.getElementById('perm-analise-mensal-editar').checked } };
 
         if(id) {
             // EDITAR: só nome, perfil e permissões (senha não muda por aqui)
@@ -9245,7 +9703,7 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         carregarDevListas, renderDevListas, addDevLista, excluirDevLista,
         carregarDevCheckins, renderDevCheckin, gerarProtocoloCheckin, salvarCheckin, editarItemDevolucao,
         renderDevRegistro, abrirRelatorioDevolucao, onDevCodigoInput, onDevProdutoInput, addItemDevolucao, renderItensRelatorio, removerItemDevolucao, excluirDevolucao,
-                salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, editarClienteSaque, salvarClienteSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, switchAnaliseSacSubtab, renderAnaliseSacDashboard, gerarRelatorioSac, exportarRelatorioSacExcel, exportarRelatorioSacPdf, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, editarClienteSac, salvarClienteSac, recarregarSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac, finalizarSacCard, renderDevFinalizados, abrirFinalizado, reabrirDevolucao,
+                salvarConferenteDev, finalizarRegistroDev, renderDevSaque, abrirSaque, editarClienteSaque, salvarClienteSaque, renderItensSaque, salvarSaqueItem, calcularValoresSaque, salvarVendedorSaque, switchSacSubtab, switchAnaliseSacSubtab, switchAnaliseMensalSubtab, carregarErrosOperacao, mudarMesRegistro, salvarTotalMesReg, previewResumoMes, salvarResumoMes, salvarErroOperacao, excluirErroOperacao, renderAnaliseMensalDashboard, salvarTotalMes, renderAnaliseMensalEvolucao, renderAnaliseMensalTV, toggleTvPeriodo, toggleFullscreenTV, renderAnaliseSacDashboard, gerarRelatorioSac, exportarRelatorioSacExcel, exportarRelatorioSacPdf, renderSacGarantia, renderSacDevolucao, finalizarSacItem, abrirSacVisao, editarClienteSac, salvarClienteSac, recarregarSacVisao, renderSacVisaoItens, gerarPdfSac, atualizarBotaoPdfSac, finalizarSacCard, renderDevFinalizados, abrirFinalizado, reabrirDevolucao,
         finalizarDevolucaoSaque, renderDevDescarte, exportarDescartePDF, exportarDescarteExcel,
         carregarWmsEnderecos, renderWmsEnderecos, abrirModalWmsEndereco, salvarWmsEndereco, excluirWmsEndereco, verWmsQr, imprimirWmsQr,
         carregarWmsSaldos, renderWmsSaldos, renderWmsTotais, abrirModalWmsSaldo, salvarWmsSaldo, excluirWmsSaldo,
