@@ -3,8 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://wxcjktlsynlzyjtusfmy.supabase.co; connect-src 'self' https://wxcjktlsynlzyjtusfmy.supabase.co wss://wxcjktlsynlzyjtusfmy.supabase.co https://*.n8n.cloud; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://wxcjktlsynlzyjtusfmy.supabase.co; connect-src 'self' https://wxcjktlsynlzyjtusfmy.supabase.co wss://wxcjktlsynlzyjtusfmy.supabase.co https://*.n8n.cloud; object-src 'none'; manifest-src 'self' data:; base-uri 'self'; frame-ancestors 'none';">
 <title>STOCK SYSTEM - Logística Operacional</title>
+<meta name="theme-color" content="#0d1117">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Stock BW">
+<script>
+(function(){
+    try {
+        function icon(size){ var c=document.createElement('canvas'); c.width=size; c.height=size; var x=c.getContext('2d'); x.fillStyle='#0d1117'; x.fillRect(0,0,size,size); x.fillStyle='#2F81F7'; x.font='bold '+Math.floor(size*0.4)+'px Arial'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('BW', size/2, size/2); return c.toDataURL('image/png'); }
+        var base = location.href.split(/[?#]/)[0];
+        var manifest = { name:'Stock System BW', short_name:'Stock BW', start_url: base, scope: base.replace(/[^/]*$/,''), display:'standalone', orientation:'any', background_color:'#0d1117', theme_color:'#0d1117', icons:[ {src:icon(192), sizes:'192x192', type:'image/png', purpose:'any'}, {src:icon(512), sizes:'512x512', type:'image/png', purpose:'any maskable'} ] };
+        var link = document.createElement('link'); link.rel='manifest'; link.href='data:application/manifest+json;charset=utf-8,'+encodeURIComponent(JSON.stringify(manifest)); document.head.appendChild(link);
+    } catch(e) { console.warn('Manifest PWA falhou:', e); }
+})();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 /* === VARIÁVEIS CSS (TEMA & CORES) === */
@@ -4037,6 +4051,16 @@ const app = (function() {
         pararScannerExp();
         await carregarSepPedidos();
         if (_expDoAtendimentoId) {
+            const atend = (state.atendimentos || []).find(a => a.id === _expDoAtendimentoId);
+            const numsAtend = (atend && typeof getPedidosListaAtend === 'function') ? getPedidosListaAtend(atend).map(pl => (pl.num || '').trim()).filter(n => n) : [];
+            const pendentes = numsAtend.filter(n => (state.sepPedidos || []).some(sp => (sp.numero || '').trim() === n && sp.status === 'Concluído'));
+            if (pendentes.length > 0) {
+                avisar('Pedido expedido! Ainda falta expedir: ' + pendentes.join(', ') + '. Bipe o(s) outro(s) antes de finalizar o despacho.');
+                closeAllDrawers();
+                if (typeof carregarExpedicaoNums === 'function') carregarExpedicaoNums();
+                renderExpedicao();
+                return;
+            }
             const sel = document.getElementById('exp-quem-sel');
             if (sel) sel.innerHTML = '<option value="">-- Selecione --</option>' + (state.responsaveisExp || []).map(r => `<option value="${escapeWms(r)}">${escapeWms(r)}</option>`).join('');
             closeAllDrawers();
