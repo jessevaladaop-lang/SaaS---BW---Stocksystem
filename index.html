@@ -2640,7 +2640,7 @@ body.monitor-mode .queue-card button { display: none !important; }
             <input type="hidden" id="user-id">
             <div class="input-group"><label class="label">Nome Completo</label><input type="text" id="user-nome" class="form-control" required></div>
             <div class="input-group"><label class="label">Login</label><input type="text" id="user-login" class="form-control" required></div>
-            <div class="input-group"><label class="label">Senha</label><input type="password" id="user-senha" class="form-control" required></div>
+            <div class="input-group"><label class="label">Senha</label><input type="password" id="user-senha" class="form-control" placeholder="Em branco = não alterar (na edição)"></div>
             <div class="input-group"><label class="label">Perfil</label><select id="user-perfil" class="form-control" required onchange="app.handlePerfilChange()"><option value="Operador">Operador</option><option value="Administrador">Administrador</option></select></div>
             <div class="card" style="padding: 1rem; margin-top: 1rem; border: 1px solid var(--border); background: var(--bg-main);">
                 <h4 style="margin: 0 0 1rem 0; color: var(--accent); font-size: 13px; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem;">Permissões Específicas</h4>
@@ -8672,10 +8672,22 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         const permissoes = { dashboard: { ver: document.getElementById('perm-dash-ver').checked }, pedidos: { ver: document.getElementById('perm-pedidos-ver').checked, editar: document.getElementById('perm-pedidos-editar').checked }, operacional: { sep: document.getElementById('perm-op-sep').checked, conf: document.getElementById('perm-op-conf').checked }, relatorio: { ver: document.getElementById('perm-relatorio-ver').checked }, atendimento: { ver: document.getElementById('perm-atend-ver').checked, editar: document.getElementById('perm-atend-editar').checked }, financeiro: { ver: document.getElementById('perm-financeiro-ver') ? document.getElementById('perm-financeiro-ver').checked : true }, reposicao: { ver: document.getElementById('perm-repo-ver').checked, editar: document.getElementById('perm-repo-editar').checked }, config: { ver: document.getElementById('perm-config-ver').checked, editar: document.getElementById('perm-config-editar').checked }, estoque: { ver: document.getElementById('perm-estoque-ver').checked, editar: document.getElementById('perm-estoque-editar').checked }, devolucao: { ver: document.getElementById('perm-devolucao-ver').checked, editar: document.getElementById('perm-devolucao-editar').checked }, importacao: { ver: document.getElementById('perm-importacao-ver').checked, editar: document.getElementById('perm-importacao-editar').checked }, alteracao: { ver: document.getElementById('perm-alteracao-ver').checked }, produtividade: { ver: document.getElementById('perm-produtividade-ver').checked }, registro: { ver: document.getElementById('perm-registro-ver').checked, editar: document.getElementById('perm-registro-editar').checked }, fiscal: { ver: document.getElementById('perm-fiscal-ver').checked, editar: document.getElementById('perm-fiscal-editar').checked }, sac: { ver: document.getElementById('perm-sac-ver').checked, editar: document.getElementById('perm-sac-editar').checked }, analiseSac: { ver: document.getElementById('perm-analise-sac-ver').checked, editar: document.getElementById('perm-analise-sac-editar').checked }, analiseMensal: { ver: document.getElementById('perm-analise-mensal-ver').checked, editar: document.getElementById('perm-analise-mensal-editar').checked } };
 
         if(id) {
-            // EDITAR: só nome, perfil e permissões (senha não muda por aqui)
-            const dataUpdate = { nome, login, perfil: document.getElementById('user-perfil').value, permissoes };
+            // EDITAR: nome/perfil/permissões direto; login e senha via função segura (Auth)
+            const userAtual = state.users.find(u => u.id === id);
+            const loginMudou = userAtual && (userAtual.login || '').trim() !== login;
+            const dataUpdate = { nome, perfil: document.getElementById('user-perfil').value, permissoes };
             const { error } = await db.from('usuarios_sistema').update(dataUpdate).eq('id', id);
             if(error) { avisar('Erro ao editar: ' + error.message); return; }
+            if (loginMudou) {
+                const r = await chamarGerenciarOperador({ rowId: id, action: 'login', novoLogin: login });
+                if (!r.ok) { avisar('Dados salvos, mas erro ao trocar login: ' + r.error); await carregarUsuarios(); return; }
+            }
+            if (senha) {
+                if (senha.length < 6) { avisar('A nova senha deve ter ao menos 6 caracteres.'); return; }
+                const r2 = await chamarGerenciarOperador({ rowId: id, action: 'senha', novaSenha: senha });
+                if (!r2.ok) { avisar('Erro ao trocar senha: ' + r2.error); await carregarUsuarios(); return; }
+            }
+            avisar('Usuário atualizado.' + (loginMudou ? ' Login alterado.' : '') + (senha ? ' Senha alterada.' : ''));
             await carregarUsuarios();
             closeAllDrawers();
         } else {
@@ -8720,7 +8732,28 @@ btnEdit.onclick = (e) => { e.stopPropagation(); app.editarAtendimento(a.id); }; 
         }
     }
     async function carregarUsuarios() { const { data: adminData } = await db.auth.getUser(); if (!adminData?.user) return; const { data: usuarios } = await db.from('usuarios_sistema').select('*').eq('admin_id', adminData.user.id).eq('ativo', true); if (usuarios) { state.users = usuarios.map(u => ({ id: u.id, nome: u.nome, login: u.login, senha: u.senha, perfil: u.perfil, isSystem: false, permissoes: u.permissoes || { dashboard: {ver: true}, pedidos: { ver: true, editar: false }, operacional: { sep: false, conf: false }, relatorio: {ver: false}, atendimento: { ver: true, editar: false }, reposicao: { ver: true, editar: false }, config: { ver: false, editar: false } }, theme: 'dark', accent: '#2F81F7' })); renderUsuarios(); } }
-    async function excluirUsuario(id) { if(!(await confirmar('Excluir este usuário?'))) return; await db.from('usuarios_sistema').update({ ativo: false }).eq('id', id); await carregarUsuarios(); }
+    async function chamarGerenciarOperador(payload) {
+        try {
+            const { data, error } = await db.functions.invoke('gerenciar-operador', { body: payload });
+            if (error) {
+                let msg = error.message || 'Erro na função.';
+                try { if (error.context && error.context.json) { const ctx = await error.context.json(); if (ctx && ctx.error) msg = ctx.error; } } catch (e) {}
+                return { ok: false, error: msg };
+            }
+            if (data && data.error) return { ok: false, error: data.error };
+            return { ok: true, data };
+        } catch (e) {
+            return { ok: false, error: String((e && e.message) || e) };
+        }
+    }
+
+    async function excluirUsuario(id) {
+        if(!(await confirmar('Excluir este usuário? Ele perde o acesso na hora e não dá pra desfazer.'))) return;
+        const r = await chamarGerenciarOperador({ rowId: id, action: 'excluir' });
+        if (!r.ok) { avisar('Erro ao excluir: ' + r.error); return; }
+        avisar('Usuário excluído.');
+        await carregarUsuarios();
+    }
 
     async function renderAll() { carregarUsuarios(); await carregarConfigs(); await carregarMetas(); await carregarPedidos(); await carregarAtendimentos(); await carregarMotoristas(); await carregarWmsProdutos(); await carregarWmsEnderecos(); await carregarWmsSaldos(); await carregarWmsOrdens(); await carregarDevProdutos(); await carregarDevListas(); await carregarDevCheckins(); await carregarImpAnalise(); await carregarFiscalClientes(); await carregarFiscalVendedores(); await carregarFiscalEnvios(); await carregarWebhookN8n(); popularFiltroStatusPedidos(); popularFiltroMesPedidos(); renderPedidos(); renderOperacional(); renderAtendimentos(); renderUsuarios(); renderResponsaveisConfig(); aplicarVisibilidadeCamposOperacionais(); aplicarPreferenciasUsuario(); iniciarPolling(); iniciarRealtimePedidos(); iniciarRealtimeAtendimentos(); iniciarRealtimeMotoristas(); }
     let _pollingInterval = null;
